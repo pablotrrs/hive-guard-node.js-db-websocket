@@ -1,0 +1,27 @@
+{
+  "name": "socket-sensor-server",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "@tensorflow-models/coco-ssd": "^2.2.2",
+    "@tensorflow/tfjs-node": "^4.2.0",
+    "dotenv": "^16.0.3",
+    "express": "^4.17.3",
+    "fluidb": "^0.3.0",
+    "mongodb": "^5.1.0",
+    "mongoose": "^7.6.11",
+    "path": "^0.12.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-jsx": "^1.0.0",
+    "react-use-websocket": "^4.3.1",
+    "ws": "^7.5.7"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "build-react": "cd public/pages/react_test && npm install && npm run build"
+  },
+  "author": "Nomadic Geek",
+  "license": "ISC",
+  "description": ""
+}

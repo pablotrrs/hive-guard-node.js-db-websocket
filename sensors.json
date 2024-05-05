@@ -1,0 +1,17 @@
+{
+    "esp32cam1": {
+        "port": 8001,
+        "saveSensorData": true,
+        "detectObjects": true,
+        "class": "cam-instance",
+        "display": "Cam #1",
+        "commands": [
+            {
+                "id": "ON_BOARD_LED",
+                "name": "Camera flashlight",
+                "class": "led-light",
+                "state": 0
+            }
+        ]
+    }
+}

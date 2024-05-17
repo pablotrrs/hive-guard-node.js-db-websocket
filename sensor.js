@@ -4,6 +4,7 @@ const fluidb = require('fluidb');
 const fs = require('fs');
 const tf = require('@tensorflow/tfjs-node');
 const MockModel = require('./test/mock-model');
+const modelBeeAlarmed = tf.io.fileSystem("./test/model.json");
 const { Sensor } = require('./sensor-model');
 require('dotenv').config();
 
@@ -63,7 +64,8 @@ async function loadModel(testMode = false) {
 		console.log("Using MockModel");
 		return new MockModel();
 	}
-	return await cocoSsd.load();
+	//return await cocoSsd.load();
+	return await tf.loadLayersModel(modelBeeAlarmed);
 }
 
 async function main() {
@@ -82,7 +84,7 @@ async function main() {
 	const server = new WebSocket.Server({ port: sensor.port }, () => console.log(`WS Server is listening at ${sensor.port}`));
 	server.on('connection', (ws) => {
 		ws.on('message', async (data) => {
-			console.log(data);
+			//console.log(data);
 			if (ws.readyState !== ws.OPEN) return;
 			
 			if (command) {
@@ -101,8 +103,11 @@ async function main() {
 						counter = 0;
 						
 						let imgTensor = tf.node.decodeImage(new Uint8Array(data), 3);
+						imgTensor = imgTensor.expandDims(0);
+						imgTensor = tf.image.resizeBilinear(imgTensor, [150, 75]);
 						
-						const predictions = await model.detect(imgTensor);
+						const predictions = await model.predict(imgTensor);
+						/*
 						predictions.forEach((prediction) => {
 							console.log(prediction.class + ' - ' + prediction.score);
 							if (validEntities.includes(prediction.class) && prediction.score > process.env.PREDICTION_SCORE_THRESHOLD) {
@@ -110,6 +115,19 @@ async function main() {
 								new fluidb(`./images/${prediction.class}/${Date.now()}`, { 'score': prediction.score, 'img': img, 'bbox': prediction.bbox });
 							}
 						});
+						*/
+						listClasses = ["varroa","pollen","wasps","cooling"];
+						console.log('predictions ---: ' + predictions);
+						for (let index = 0; index < predictions.length; index++) {
+							let scoreTensor = predictions[index];
+							let score = scoreTensor.dataSync()[0];
+							score = score < 0.000001 ? 0 : score;
+							console.log(listClasses[index] + ' - score: ' + score);
+							//new fluidb(`./images/${listClasses[index]}/${Date.now()}`, { 'img': img});
+						}
+
+
+
 						tf.dispose([imgTensor]);
 					}
 				}

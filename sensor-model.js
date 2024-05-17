@@ -74,7 +74,7 @@ sensorSchema.statics.getSensorDataByIdBetweenTimestamps = async function (sensor
 sensorSchema.statics.saveSensorData = function (sensorsObj) {
     this.create(sensorsObj)
         .then(() => {
-            console.error(`Sensor data saved successfully: ${JSON.stringify(sensorsObj)}`);
+            //console.error(`Sensor data saved successfully: ${JSON.stringify(sensorsObj)}`);
         })
         .catch((err) => {
             console.error(`Error saving sensor data: ${err}`);

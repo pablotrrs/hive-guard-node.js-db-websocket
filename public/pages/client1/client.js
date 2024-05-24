@@ -1,7 +1,22 @@
 //const ws = new WebSocket('ws://192.168.0.150:8999');
 //const ws = new WebSocket('ws://192.168.1.33:8999');
+
 // TODO ver de obtener esta ip dinamicamente
-const ws = new WebSocket('ws://192.168.1.46:8999');
+// At the top of your server.js file, require and configure dotenv:
+// require('dotenv').config();
+// In your server.js file, when rendering your HTML file, pass in the environment variables:
+// app.get('/client', (_req, res) => {
+//    res.render('client', { env: process.env });
+//});
+// In your HTML file, create a script that sets a global JavaScript variable:
+//<script>
+//    window.env = <%= JSON.stringify(env) %>;
+//</script>
+// Then, in your client.js file, you can access this global variable:
+// const ws = new WebSocket(`ws://${window.env.CLIENT_SERVER_IP}:${window.env.CLIENT_WS_PORT}`);
+
+// const ws = new WebSocket('ws://' + process.env.CLIENT_SERVER_IP + ':8999');
+const ws = new WebSocket('ws://' + 'localhost' + ':8999');
 
 ws.addEventListener('open', (event) => {
 	ws.send(JSON.stringify({

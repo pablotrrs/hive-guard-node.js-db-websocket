@@ -1,6 +1,7 @@
 require('dotenv').config();
 
-// --------------- SENSOR INITIALIZATION ---------------
+// --------------- MULTITHREADING CONFIG ---------------
+// --------------- WORKERS INITIALIZATION ---------------
 
 const os = require('os');
 const cores = os.cpus().length;
@@ -124,6 +125,7 @@ wss.on('connection', (ws) => {
 
 const path = require('path');
 const express = require('express');
+const http = require("http");
 const app = express();
 app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use('/react', express.static(path.join(__dirname, 'public/pages/react_test/build')));
@@ -151,6 +153,10 @@ app.post('/api/config', (req, res) => {
 
     res.send('Environment variables updated successfully');
 });
+
+const masterDiscovery = require('./master_discovery');
+
+app.get('/isMaster', masterDiscovery.isMaster);
 
 app.listen(process.env.CLIENT_HTTP_PORT, () => {
     console.log(`HTTP server starting on ${process.env.CLIENT_HTTP_PORT} with process ID ${process.pid}`);

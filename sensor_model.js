@@ -1,4 +1,4 @@
-const mongoose = require('./mongoose-config');
+const mongoose = require('./config/mongoose_config');
 
 const sensorSchema = new mongoose.Schema({
     sensorId: { type: String, required: true },
@@ -6,9 +6,6 @@ const sensorSchema = new mongoose.Schema({
     // Add other sensor values as needed
     temp: Number,
     hum: Number,
-    co: Number,
-    lpg: Number,
-    smoke: Number,
 });
 
 sensorSchema.statics.getAllSensorsData = async function () {
@@ -74,7 +71,7 @@ sensorSchema.statics.getSensorDataByIdBetweenTimestamps = async function (sensor
 sensorSchema.statics.saveSensorData = function (sensorsObj) {
     this.create(sensorsObj)
         .then(() => {
-            //console.error(`Sensor data saved successfully: ${JSON.stringify(sensorsObj)}`);
+            console.debug(`Sensor data saved successfully: ${JSON.stringify(sensorsObj)}`);
         })
         .catch((err) => {
             console.error(`Error saving sensor data: ${err}`);
@@ -84,9 +81,9 @@ sensorSchema.statics.saveSensorData = function (sensorsObj) {
     return Promise.resolve(true);
 };
 
-const Sensor = mongoose.model('Sensor', sensorSchema);
+const SensorData_Database = mongoose.model('Sensor', sensorSchema);
 
 module.exports = {
     mongoose,
-    Sensor
+    SensorData_Database: SensorData_Database
 };

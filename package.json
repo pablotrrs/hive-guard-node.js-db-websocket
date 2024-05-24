@@ -1,32 +1,29 @@
 {
-  "name": "socket-sensor-server",
+  "name": "hive-guard-master-server",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "dependencies": {
     "@mapbox/node-pre-gyp": "^1.0.11",
     "@tensorflow-models/coco-ssd": "^2.2.3",
     "@tensorflow/tfjs-node": "^4.19.0",
-    "@tensorflow/tfjs-node-gpu": "^4.19.0",
-    "bcrypt": "^5.1.1",
-    "dotenv": "^16.0.3",
-    "express": "^4.17.3",
+    "dotenv": "^16.4.5",
+    "emailjs": "^4.0.3",
+    "express": "^4.19.2",
     "fluidb": "^0.3.0",
-    "install": "^0.13.0",
-    "mongodb": "^5.1.0",
-    "mongoose": "^7.6.11",
-    "npm": "^10.7.0",
-    "path": "^0.12.7",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "mongodb": "^6.6.2",
+    "mongoose": "^8.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-jsx": "^1.0.0",
-    "react-use-websocket": "^4.3.1",
-    "ws": "^7.5.7"
-  },
-  "scripts": {
-    "start": "node server.js",
-    "build-react": "cd public/pages/react_test && npm install && npm run build"
-  },
-  "author": "Nomadic Geek",
-  "license": "ISC",
-  "description": ""
+    "react-use-websocket": "^4.8.1",
+    "ws": "^8.17.0"
+  }
 }

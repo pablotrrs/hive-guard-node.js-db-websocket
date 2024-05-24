@@ -1,5 +1,7 @@
-const ws = new WebSocket('ws://192.168.1.33:8999');
 //const ws = new WebSocket('ws://192.168.0.150:8999');
+//const ws = new WebSocket('ws://192.168.1.33:8999');
+// TODO ver de obtener esta ip dinamicamente
+const ws = new WebSocket('ws://192.168.1.46:8999');
 
 ws.addEventListener('open', (event) => {
 	ws.send(JSON.stringify({

@@ -15,6 +15,7 @@
     "@tensorflow-models/coco-ssd": "^2.2.3",
     "@tensorflow/tfjs-node": "^4.19.0",
     "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
     "emailjs": "^4.0.3",
     "express": "^4.19.2",
     "fluidb": "^0.3.0",

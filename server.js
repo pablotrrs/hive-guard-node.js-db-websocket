@@ -130,11 +130,13 @@ const app = express();
 app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use('/react', express.static(path.join(__dirname, 'public/pages/react_test/build')));
 
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'public/pages/client1'));
 app.get('/client', (_req, res) => {
-    res.sendFile(path.resolve(__dirname, './public/pages/client1/client.html'));
+    res.render('client', { env: process.env });
 });
 app.get('/client2', (_req, res) => {
-    res.sendFile(path.resolve(__dirname, './public/pages/client2/client.html'));
+    res.sendFile(path.resolve(__dirname, './public/pages/client2/client.ejs'));
 });
 app.get('/react/*', (_req, res) => {
     res.sendFile(path.resolve(__dirname, './public/pages/react_test/build/index.html'));

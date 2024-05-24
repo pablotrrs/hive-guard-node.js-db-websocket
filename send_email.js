@@ -1,4 +1,14 @@
+function checkEmailEnvVars() {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_RECIPIENT) {
+        throw new Error('You must set the EMAIL_USER, EMAIL_PASS, and EMAIL_RECIPIENT environment variables\n' +
+            'before sending an email. You can do this by sending a POST request to /api/config with the\n' +
+            'following JSON payload: {"EMAIL_USER": " ", "EMAIL_PASS": " ", "EMAIL_RECIPIENT": " "}.')
+    }
+}
+
 function sendEmail(subject, text) {
+    checkEmailEnvVars();
+
     let emailjs;
 
     import('emailjs').then((module) => {

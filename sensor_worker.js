@@ -168,7 +168,17 @@ function handleCommand(data) {
     }
 }
 
+function checkTempAndHumEnvVars() {
+    if (!process.env.TEMP_MAX_THRESHOLD || !process.env.TEMP_MIN_THRESHOLD || !process.env.HUM_THRESHOLD) {
+        throw new Error('You must set the TEMP_MAX_THRESHOLD, TEMP_MIN_THRESHOLD, and HUM_THRESHOLD environment variables\n' +
+            'before sending an email. You can do this by sending a POST request to /api/config with the\n' +
+            'following JSON payload: {"TEMP_MAX_THRESHOLD": " ", "TEMP_MIN_THRESHOLD": " ", "HUM_THRESHOLD": " "}.')
+    }
+}
+
 function sendEmailIfTempAndHumAreCursed(sensor_worker) {
+    checkTempAndHumEnvVars();
+
     if (sensor_worker.temp > process.env.TEMP_MAX_THRESHOLD) {
         sendEmail('Temperature Alert', `Sensor ${sensor_worker.key} exceeded the temperature threshold. Temperature: ${sensor_worker.temp}`);
     }

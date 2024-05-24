@@ -137,6 +137,21 @@ app.get('/client2', (_req, res) => {
 app.get('/react/*', (_req, res) => {
     res.sendFile(path.resolve(__dirname, './public/pages/react_test/build/index.html'));
 });
+
+app.use(express.json());
+app.post('/api/config', (req, res) => {
+    const { TEMP_MIN_THRESHOLD, TEMP_MAX_THRESHOLD, HUM_THRESHOLD, EMAIL_USER, EMAIL_PASS, EMAIL_RECIPIENT } = req.body;
+
+    if (TEMP_MIN_THRESHOLD) process.env.TEMP_MIN_THRESHOLD = TEMP_MIN_THRESHOLD;
+    if (TEMP_MAX_THRESHOLD) process.env.TEMP_MAX_THRESHOLD = TEMP_MAX_THRESHOLD;
+    if (HUM_THRESHOLD) process.env.HUM_THRESHOLD = HUM_THRESHOLD;
+    if (EMAIL_USER) process.env.EMAIL_USER = EMAIL_USER;
+    if (EMAIL_PASS) process.env.EMAIL_PASS = EMAIL_PASS;
+    if (EMAIL_RECIPIENT) process.env.EMAIL_RECIPIENT = EMAIL_RECIPIENT;
+
+    res.send('Environment variables updated successfully');
+});
+
 app.listen(process.env.CLIENT_HTTP_PORT, () => {
     console.log(`HTTP server starting on ${process.env.CLIENT_HTTP_PORT} with process ID ${process.pid}`);
 });

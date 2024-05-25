@@ -3,17 +3,45 @@ require('dotenv').config();
 // --------------- MULTITHREADING CONFIG ---------------
 // --------------- WORKERS INITIALIZATION ---------------
 
+const fs = require("fs");
+const path = require('path');
 const os = require('os');
 const cores = os.cpus().length;
 const cluster = require('cluster');
 const globalSensorData = require('./global_sensor_data');
-const sensors = require('./sensors.json');
-const sensorsArray = Object.entries(sensors).map(([key, value]) => ({key, ...value}));
 const {Sensor} = require('./sensor_model');
-const sensorsPerWorker = Math.ceil(sensorsArray.length / cores);
 const workers = new Map();
+const { eventEmitter } = require('./master_discovery');
+const sensorsPath = path.join(__dirname, 'sensors.json');
+let sensorsPerWorker;
+const http = require("http");
+const sensors = require(sensorsPath);
 
-function initializeSensors() {
+// TODO esto también tiene que ser para cuando se agrega uno aparte de la inicialización
+eventEmitter.on('sensorIsRequestingToConnect', (sensorRegistrationJson) => {
+    writeSensorJsonToFile(sensorRegistrationJson, sensorsPath);
+
+    const sensorsData = fs.readFileSync(sensorsPath, 'utf8');
+    const sensors = JSON.parse(sensorsData);
+    const sensorsArray = Object.entries(sensors).map(([key, value]) => ({key, ...value}));
+    initializeSensors(sensorsArray);
+});
+
+function writeSensorJsonToFile(sensorRegistrationJson, sensorsFilePath) {
+    try {
+        const data = fs.readFileSync(sensorsFilePath, 'utf8');
+        const sensors = JSON.parse(data);
+
+        Object.assign(sensors, sensorRegistrationJson);
+
+        fs.writeFileSync(sensorsFilePath, JSON.stringify(sensors, null, 2), 'utf8');
+    } catch (err) {
+        console.error(`Error reading or writing file: ${err}`);
+    }
+}
+
+function initializeSensors(sensorsArray) {
+    sensorsPerWorker = Math.ceil(sensorsArray.length / cores);
     console.log(`Total CPUs (Logical cores): ${cores}`);
     cluster.setupPrimary({exec: path.join(__dirname, 'sensor_worker.js')});
 
@@ -123,9 +151,7 @@ wss.on('connection', (ws) => {
 
 // --------------- EXPRESS SERVER INITIALIZATION ---------------
 
-const path = require('path');
 const express = require('express');
-const http = require("http");
 const app = express();
 app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use('/react', express.static(path.join(__dirname, 'public/pages/react_test/build')));
@@ -157,11 +183,29 @@ app.post('/api/config', (req, res) => {
 });
 
 const masterDiscovery = require('./master_discovery');
+const child_process = require("child_process");
 
-app.get('/isMaster', masterDiscovery.isMaster);
+app.use(express.json());
+
+app.post('/isMaster', (req, res) => {
+    const sensorRegistrationJson = req.body;
+    masterDiscovery.isMaster(req, res, sensorRegistrationJson);
+});
 
 app.listen(process.env.CLIENT_HTTP_PORT, () => {
     console.log(`HTTP server starting on ${process.env.CLIENT_HTTP_PORT} with process ID ${process.pid}`);
 });
 
-initializeSensors();
+// --------------- ON SERVER SHUTDOWN ---------------
+function cleanupAndExit() {
+    // Delete all sensors in sensors.json file and leave a {}
+    fs.writeFileSync(path.join(__dirname, 'sensors.json'), JSON.stringify({}, null, 2), 'utf8');
+
+    console.log('All registered sensors have been deleted');
+    console.log('Bye!');
+
+    process.exit();
+}
+
+process.on("SIGINT", cleanupAndExit);
+process.on("SIGTERM", cleanupAndExit);

@@ -1,7 +1,9 @@
 // this file has the master - esp32 streamer discovery logic
 const http = require("http");
+const events = require('events');
+const eventEmitter = new events.EventEmitter();
 
-exports.isMaster = (_req, res) => {
+exports.isMaster = (_req, res, sensorRegistrationJson) => {
     console.log("received request");
     res.setHeader('Master', 'Yes');
     res.status(200).send('Master server\r');
@@ -13,7 +15,7 @@ exports.isMaster = (_req, res) => {
     console.log("ESP32 making the request IP address is: " + ipAddress);
 
     const clientIp = process.env.CLIENT_SERVER_IP;
-    let json = JSON.stringify({ clientIp: clientIp });
+    let json = JSON.stringify({clientIp: clientIp});
 
     const post_options = {
         hostname: ipAddress,
@@ -29,4 +31,8 @@ exports.isMaster = (_req, res) => {
 
     post_request.write(json)
     post_request.end();
+
+    eventEmitter.emit('sensorIsRequestingToConnect', sensorRegistrationJson);
 };
+
+exports.eventEmitter = eventEmitter;

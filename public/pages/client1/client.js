@@ -1,4 +1,5 @@
-const ws = new WebSocket(`ws://${window.env.CLIENT_SERVER_IP}:${window.env.CLIENT_WS_PORT}`);
+const clientIp = window.env.CLIENT_SERVER_IP;
+const ws = new WebSocket(`ws://${clientIp}:${window.env.CLIENT_WS_PORT}`);
 
 let allDevices = new Map();
 
@@ -35,7 +36,6 @@ ws.onmessage = message => {
 }
 
 function createDeviceBox(device) {
-    console.log("hey from createDeviceBox", device)
     let deviceElement = document.querySelector('#' + device.id);
     if (!deviceElement) {
         deviceElement = createElement('div', {id: device.id, class: device.class + ' item'});
@@ -57,12 +57,28 @@ function createDeviceBox(device) {
             id: 'wrap-' + device.id + '-commands',
             class: 'commands-wrapper-overlay'
         }));
+        deviceElement.appendChild(createElement('div', {
+            id: device.id + '-temp',
+            class: 'sensor sensor-temp'
+        }, '0 '));
+
+        deviceElement.appendChild(createElement('div', {
+            id: device.id + '-hum',
+            class: 'sensor sensor-hum'
+        }, '0 '));
     }
 }
 
 function updateDeviceBox(device, incomingData) {
     if (incomingData.image) {
         document.querySelector('#img-' + device.id).src = "data:image/jpeg;base64," + incomingData.image;
+    }
+    // if ('temp' in incomingData) {
+    if (incomingData.temp) {
+        document.querySelector('#' + device.id + '-temp').innerHTML = incomingData.temp + ' ';
+    }
+    if (incomingData.hum) {
+        document.querySelector('#' + device.id + '-hum').innerHTML = incomingData.hum + ' ';
     }
 
     try {
@@ -77,6 +93,7 @@ function updateDeviceBox(device, incomingData) {
 
             document.querySelector('#' + device.id + '-' + key.toLowerCase()).innerHTML = value;
         }
+
     } catch (error) {
     }
 }

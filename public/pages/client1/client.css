@@ -19,7 +19,7 @@ body {
   overflow: hidden;
   margin:10px;
   width: 200px;
-  height: 250px;
+  height: auto;
 }
 
 .item h2 {

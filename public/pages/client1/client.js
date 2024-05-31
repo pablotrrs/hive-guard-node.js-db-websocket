@@ -1,75 +1,82 @@
 const ws = new WebSocket(`ws://${window.env.CLIENT_SERVER_IP}:${window.env.CLIENT_WS_PORT}`);
 
+let allDevices = new Map();
+
 ws.addEventListener('open', (event) => {
-	ws.send(JSON.stringify({
-		'client': '8999',
-		'operation': 'connecting',
-		'data': {}
-	}));
+    ws.send(JSON.stringify({
+        'client': '8999',
+        'operation': 'connecting',
+        'data': {}
+    }));
 });
 
 ws.onmessage = message => {
-	let md = JSON.parse(message.data);
+    let md = JSON.parse(message.data);
+    let incomingData = md.devices[0];
+    console.log('incomingData', incomingData);
+    console.log('allDevices', Array.from(allDevices));
 
-	md.devices.forEach(device => {
-		if (!document.querySelector('#' + device.key)) {
-			document.querySelector('#main-wrapper')
-				.appendChild(createElement('div',{ id: device.key, class: device.class + ' item' }))
-				.appendChild(createElement('h2',{ id: device.key + '-header', class: 'sensors-header' }, device.display));
-			if (device.class === 'cam-instance') {
-				document.querySelector('#'+device.key) 
-					.appendChild(createElement('div',{ id:'wrap-' + device.key + '-image', class: 'image-wrapper' }))
-					.appendChild(createElement('img',{ id:'img-' + device.key }));
-			}
-			document.querySelector('#'+device.key)
-				.appendChild(createElement('div',{ id:'wrap-' + device.key + '-sensors', class:'sensors-wrapper-overlay' }));
-			document.querySelector('#'+device.key)
-				.appendChild(createElement('div',{ id:'wrap-' + device.key + '-commands', class:'commands-wrapper-overlay' }));
-		}
-		
-		if (device.image) {
-			document.querySelector('#img-' + device.key).src = "data:image/jpeg;base64," + device.image;
-		}
+    // if md.devices.id is not in devices, add it
+    if (!allDevices.has(incomingData.id)) {
+        let device = {
+            id: incomingData.id,
+            // key: incomingData.key,
+            class: incomingData.class,
+            display: incomingData.display,
+            port: incomingData.port
+        }
+        allDevices.set(device.id, device);
+        createDeviceBox(device);
+    }
 
-		try {
-			for (const [key, value] of Object.entries(device.sensors)) {
-				if (!document.querySelector('#' + device.key + '-' + key)) {
-					document.querySelector('#wrap-' + device.key + '-sensors')
-						.appendChild(createElement('div', { id: device.key + '-' + key.toLowerCase(), class: 'sensor sensor-' + key.toLowerCase() }));
-				}
-				
-				document.querySelector('#' + device.key + '-' + key.toLowerCase()).innerHTML = value;
-			}
-		} catch (error) {}
-		
-		if(device.commands) {
-			device.commands.forEach((command) => {
-				if (!document.querySelector('#' + device.key + '-' + command.id)) {
-					document.querySelector('#wrap-' + device.key + '-commands')
-						.appendChild(createElement('div', { 
-							id: device.key + '-' + command.id.toLowerCase(), 
-							class: 'command-button'
-					})).appendChild(createElement('div',{ 
-						id: device.key + '-' + command.id.toLowerCase() + '-state', class: command.class, 
-						'data-state': command.state
-					}));
-	
-					document.querySelector('#' + device.key + '-' + command.id.toLowerCase()).addEventListener('click', function(e) {
-						ws.send(JSON.stringify({
-							'client' : '8999',
-							'operation' : 'function',
-							'command': {'recipient' : device.key, 'message' : { key: command.id, value: e.target.dataset.state == 1 ? 0 : 1 }}
-						}));
-					});
-				} else {
-					// Has any state changed?
-					let element = document.querySelector('#' + device.key + '-' + command.id + '-state');
-	
-					if (element && command.state != element.dataset.state) {
-						element.dataset.state = command.state;
-					}
-				}
-			});
-		}
-	});
+    allDevices.forEach(device => {
+        updateDeviceBox(device, incomingData);
+    });
+}
+
+function createDeviceBox(device) {
+    console.log("hey from createDeviceBox", device)
+    let deviceElement = document.querySelector('#' + device.id);
+    if (!deviceElement) {
+        deviceElement = createElement('div', {id: device.id, class: device.class + ' item'});
+        document.querySelector('#main-wrapper').appendChild(deviceElement);
+        deviceElement.appendChild(createElement('h2', {
+            id: device.id + '-header',
+            class: 'sensors-header'
+        }, device.display));
+        if (device.class === 'cam-instance') {
+            let imageWrapper = createElement('div', {id: 'wrap-' + device.id + '-image', class: 'image-wrapper'});
+            deviceElement.appendChild(imageWrapper);
+            imageWrapper.appendChild(createElement('img', {id: 'img-' + device.id}));
+        }
+        deviceElement.appendChild(createElement('div', {
+            id: 'wrap-' + device.id + '-sensors',
+            class: 'sensors-wrapper-overlay'
+        }));
+        deviceElement.appendChild(createElement('div', {
+            id: 'wrap-' + device.id + '-commands',
+            class: 'commands-wrapper-overlay'
+        }));
+    }
+}
+
+function updateDeviceBox(device, incomingData) {
+    if (incomingData.image) {
+        document.querySelector('#img-' + device.id).src = "data:image/jpeg;base64," + incomingData.image;
+    }
+
+    try {
+        for (const [key, value] of Object.entries(incomingData.sensors)) {
+            if (!document.querySelector('#' + device.id + '-' + key)) {
+                document.querySelector('#wrap-' + device.id + '-sensors')
+                    .appendChild(createElement('div', {
+                        id: device.id + '-' + key.toLowerCase(),
+                        class: 'sensor sensor-' + key.toLowerCase()
+                    }));
+            }
+
+            document.querySelector('#' + device.id + '-' + key.toLowerCase()).innerHTML = value;
+        }
+    } catch (error) {
+    }
 }

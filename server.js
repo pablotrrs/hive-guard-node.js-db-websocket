@@ -3,46 +3,95 @@ require('dotenv').config();
 // --------------- MULTITHREADING CONFIG ---------------
 // --------------- WORKERS INITIALIZATION ---------------
 
+// const fs = require("fs");
+// const path = require('path');
+// const os = require('os');
+// const cores = os.cpus().length;
+// const cluster = require('cluster');
+// const globalSensorData = require('./global_sensor_data');
+// const {Sensor} = require('./sensor_model');
+// const workers = new Map();
+// const { eventEmitter } = require('./master_discovery');
+// const sensorsPath = path.join(__dirname, 'sensors.json');
+// let sensorsPerWorker;
+// const http = require("http");
+// const sensors = require(sensorsPath);
+//
+// // TODO esto también tiene que ser para cuando se agrega uno aparte de la inicialización
+// eventEmitter.on('sensorIsRequestingToConnect', (sensorRegistrationJson) => {
+//     writeSensorJsonToFile(sensorRegistrationJson, sensorsPath);
+//
+//     const sensorsData = fs.readFileSync(sensorsPath, 'utf8');
+//     const sensors = JSON.parse(sensorsData);
+//     const sensorsArray = Object.entries(sensors).map(([key, value]) => ({key, ...value}));
+//     initializeSensors(sensorsArray);
+// });
+//
+// function writeSensorJsonToFile(sensorRegistrationJson, sensorsFilePath) {
+//     try {
+//         const data = fs.readFileSync(sensorsFilePath, 'utf8');
+//         const sensors = JSON.parse(data);
+//
+//         Object.assign(sensors, sensorRegistrationJson);
+//
+//         fs.writeFileSync(sensorsFilePath, JSON.stringify(sensors, null, 2), 'utf8');
+//     } catch (err) {
+//         console.error(`Error reading or writing file: ${err}`);
+//     }
+// }
+
 const fs = require("fs");
 const path = require('path');
 const os = require('os');
 const cores = os.cpus().length;
 const cluster = require('cluster');
 const globalSensorData = require('./global_sensor_data');
-const {Sensor} = require('./sensor_model');
+// const sensors = require('./sensors.json');
+// const sensorsArray = Object.entries(sensors).map(([key, value]) => ({key, ...value}));
+// const sensorsPerWorker = Math.ceil(sensorsArray.length / cores);
 const workers = new Map();
-const { eventEmitter } = require('./master_discovery');
-const sensorsPath = path.join(__dirname, 'sensors.json');
-let sensorsPerWorker;
-const http = require("http");
-const sensors = require(sensorsPath);
+const {Sensor} = require('./sensor_model');
 
-// TODO esto también tiene que ser para cuando se agrega uno aparte de la inicialización
-eventEmitter.on('sensorIsRequestingToConnect', (sensorRegistrationJson) => {
-    writeSensorJsonToFile(sensorRegistrationJson, sensorsPath);
+function initializeSensors() {
+    const sensors = {
+        "esp32cam1": {
+            "port": 8003,
+            "saveSensorData": true,
+            "detectObjects": true,
+            "class": "cam-instance",
+            "display": "Cam #1",
+            "commands": [
+                {
+                    "id": "ON_BOARD_LED",
+                    "name": "Camera flashlight",
+                    "class": "led-light",
+                    "state": 0
+                }
+            ]
+        },
+        "esp32cam2": {
+            "port": 8001,
+            "saveSensorData": true,
+            "detectObjects": true,
+            "class": "cam-instance",
+            "display": "Cam #2",
+            "commands": [
+                {
+                    "id": "ON_BOARD_LED",
+                    "name": "Camera flashlight",
+                    "class": "led-light",
+                    "state": 0
+                }
+            ]
+        }
+    };
 
-    const sensorsData = fs.readFileSync(sensorsPath, 'utf8');
-    const sensors = JSON.parse(sensorsData);
-    const sensorsArray = Object.entries(sensors).map(([key, value]) => ({key, ...value}));
-    initializeSensors(sensorsArray);
-});
+    const sensorsArray = Object.entries(sensors).map(([key, value]) => ({ id: key, ...value }));
+    const sensorsPerWorker = Math.ceil(sensorsArray.length / cores);
 
-function writeSensorJsonToFile(sensorRegistrationJson, sensorsFilePath) {
-    try {
-        const data = fs.readFileSync(sensorsFilePath, 'utf8');
-        const sensors = JSON.parse(data);
-
-        Object.assign(sensors, sensorRegistrationJson);
-
-        fs.writeFileSync(sensorsFilePath, JSON.stringify(sensors, null, 2), 'utf8');
-    } catch (err) {
-        console.error(`Error reading or writing file: ${err}`);
-    }
-}
-
-function initializeSensors(sensorsArray) {
-    sensorsPerWorker = Math.ceil(sensorsArray.length / cores);
     console.log(`Total CPUs (Logical cores): ${cores}`);
+    console.log(`Total sensors: ${sensorsArray.length}`);
+    console.log(JSON.stringify(sensorsArray, null, 2));
     cluster.setupPrimary({exec: path.join(__dirname, 'sensor_worker.js')});
 
     for (let i = 0; i < cores; i++) {
@@ -131,7 +180,7 @@ async function handleWebSocketMessage(ws, data) {
 
 // --------------- WEBSOCKET SERVER INITIALIZATION ---------------
 const connectedClients = new Set();
-const wss = new WebSocket.Server({port: process.env.CLIENT_WS_PORT}, () => console.log(`WS Server is listening at ${process.env.CLIENT_WS_PORT}`));
+const clientWs = new WebSocket.Server({port: process.env.CLIENT_WS_PORT}, () => console.log(`WS Server is listening at ${process.env.CLIENT_WS_PORT}`));
 
 setInterval(() => {
     for (const client of connectedClients) {
@@ -141,7 +190,7 @@ setInterval(() => {
     }
 }, process.env.CLIENT_UPDATE_FREQUENCY);
 
-wss.on('connection', (ws) => {
+clientWs.on('connection', (ws) => {
     connectedClients.add(ws);
     ws.on('message', (data) => handleWebSocketMessage(ws, data));
     ws.on('close', () => {
@@ -196,12 +245,42 @@ app.listen(process.env.CLIENT_HTTP_PORT, () => {
     console.log(`HTTP server starting on ${process.env.CLIENT_HTTP_PORT} with process ID ${process.pid}`);
 });
 
+// log the server ip address
+const ifaces = os.networkInterfaces();
+Object.keys(ifaces).forEach(ifname => {
+    let alias = 0;
+
+    ifaces[ifname].forEach(iface => {
+        if ('IPv4' !== iface.family || iface.internal !== false) {
+            return;
+        }
+
+        if (alias >= 1) {
+            console.log(ifname + ':' + alias, iface.address);
+        } else {
+            console.log(ifname, iface.address);
+        }
+        ++alias;
+    });
+});
+
+
+initializeSensors();
+
 // --------------- ON SERVER SHUTDOWN ---------------
 function cleanupAndExit() {
-    // Delete all sensors in sensors.json file and leave a {}
-    fs.writeFileSync(path.join(__dirname, 'sensors.json'), JSON.stringify({}, null, 2), 'utf8');
+    console.log('Server is shutting down...');
+    for (const worker of workers.keys()) {
+        worker.send({ update: 'close' });
+    }
 
-    console.log('All registered sensors have been deleted');
+    clientWs.close();
+
+    console.log('All workers have been closed');
+
+    // fs.writeFileSync(path.join(__dirname, 'sensors.json'), JSON.stringify({}, null, 2), 'utf8');
+    //
+    // console.log('All registered sensors have been deleted');
     console.log('Bye!');
 
     process.exit();

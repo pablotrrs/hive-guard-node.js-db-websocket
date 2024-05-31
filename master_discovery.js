@@ -19,7 +19,7 @@ exports.isMaster = (_req, res, sensorRegistrationJson) => {
 
     const post_options = {
         hostname: ipAddress,
-        port: process.env.ESP32_STREAMERS_PORT,
+        port: sensorRegistrationJson.port,
         method: "POST",
         path: "/iAmMaster",
         headers: {
@@ -32,7 +32,7 @@ exports.isMaster = (_req, res, sensorRegistrationJson) => {
     post_request.write(json)
     post_request.end();
 
-    eventEmitter.emit('sensorIsRequestingToConnect', sensorRegistrationJson);
+    // eventEmitter.emit('sensorIsRequestingToConnect', sensorRegistrationJson);
 };
 
 exports.eventEmitter = eventEmitter;

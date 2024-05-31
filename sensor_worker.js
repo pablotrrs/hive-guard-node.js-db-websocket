@@ -16,6 +16,7 @@ let validEntities = ['cat', 'dog', 'person', 'laptop', 'tv'];
 let counter = 0;
 let initialDataReceived;
 let resolveInitialData;
+let server;
 
 initialDataReceived = new Promise((resolve) => {
     resolveInitialData = resolve;
@@ -49,9 +50,16 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 process.on('message', (message) => {
+    if (message.update === 'close') {
+        server.close(() => {
+            console.log('WebSocket server closed');
+        });
+    }
+
     if (message.update === 'sensor') {
         sensor_worker = message.data;
-        console.log('Connection prepared for', sensor_worker.key);
+        console.log("all the mf data", sensor_worker)
+        console.log('Connection prepared for', sensor_worker.id);
 
         resolveInitialData();
     } else if (message.update === 'command') {
@@ -199,14 +207,24 @@ async function main() {
     const model = await loadModel(testMode);
     // }
 
-    console.log('AI Model - ' + sensor_worker.detectObjects + ', Connection started for', sensor_worker.key);
+    console.log('AI Model - ' + sensor_worker.detectObjects + ', Connection started for', sensor_worker.id);
 
     if (!sensor_worker) {
         process.exit();
     }
 
-    const server = new WebSocket.Server({ port: sensor_worker.port }, () => console.log(`WS Server is listening at ${sensor_worker.port}`));
+    server = new WebSocket.Server({ port: sensor_worker.port }, () => console.log(`WS Server is listening at ${sensor_worker.port}`));
     server.on('connection', (ws) => {
+        console.log('A new WebSocket connection has been established between master and streamer ' + sensor_worker.id);
+
+        ws.on('close', () => {
+            console.log('A WebSocket connection has been closed between master and streamer ' + sensor_worker.id);
+        });
+
+        ws.on('error', (err) => {
+            console.error('Error in WebSocket connection between master and streamer ' + sensor_worker.id, err);
+        });
+
         ws.on('message', async (data) => {
             //console.log(data);
             if (ws.readyState !== ws.OPEN) return;

@@ -1,17 +1,36 @@
 const clientIp = window.env.CLIENT_SERVER_IP;
-const ws = new WebSocket(`ws://${clientIp}:${window.env.CLIENT_WS_PORT}`);
+const wsWithServer = new WebSocket(`ws://${clientIp}:${window.env.CLIENT_WS_PORT}`);
 
 let allDevices = new Map();
 
-ws.addEventListener('open', (event) => {
-    ws.send(JSON.stringify({
+wsWithServer.addEventListener('open', (event) => {
+    wsWithServer.send(JSON.stringify({
         'client': '8999',
         'operation': 'connecting',
         'data': {}
     }));
 });
 
-ws.onmessage = message => {
+document.addEventListener('DOMContentLoaded', (event) => {
+    let mainWrapper = document.querySelector('#main-wrapper');
+    let serverInfo = createElement('div', {class: 'server-info'});
+    serverInfo.appendChild(createElement('h2', {}, 'Master server, ip:' + clientIp));
+    let details = createElement('details', {});
+    details.appendChild(createElement('summary', {}, 'Connected streamers: ' + allDevices.size));
+    serverInfo.appendChild(details);
+    mainWrapper.insertBefore(serverInfo, mainWrapper.firstChild);
+});
+
+window.onload = function() {
+
+    let serverInfo = createElement('div', {class: 'server-info'});
+    serverInfo.appendChild(createElement('h2', {}, 'Master server, ip:' + clientIp));
+    // no anda lo de la tab no se por que
+    let details = createElement('details', {});
+    details.appendChild(createElement('summary', {}, 'Connected streamers: ' + allDevices.size));
+};
+
+wsWithServer.onmessage = message => {
     let md = JSON.parse(message.data);
     let incomingData = md.devices[0];
     console.log('incomingData', incomingData);
@@ -21,7 +40,6 @@ ws.onmessage = message => {
     if (!allDevices.has(incomingData.id)) {
         let device = {
             id: incomingData.id,
-            // key: incomingData.key,
             class: incomingData.class,
             display: incomingData.display,
             port: incomingData.port
@@ -33,6 +51,16 @@ ws.onmessage = message => {
     allDevices.forEach(device => {
         updateDeviceBox(device, incomingData);
     });
+
+    let detailsSummary = document.querySelector('.server-info details summary');
+    detailsSummary.innerHTML = 'Connected streamers: ' + allDevices.size;
+
+    // let details = document.querySelector('.server-info details');
+    // let devicesData = '';
+    // allDevices.forEach(device => {
+    //     devicesData += `Device ID: ${device.id}, Class: ${device.class}, Display: ${device.display}, Port: ${device.port}<br>`;
+    // });
+    // details.innerHTML = devicesData
 }
 
 function createDeviceBox(device) {

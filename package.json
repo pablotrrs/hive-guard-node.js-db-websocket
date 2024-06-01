@@ -24,6 +24,7 @@
     "fluidb": "^0.3.0",
     "mongodb": "^6.6.2",
     "mongoose": "^8.4.0",
+    "node-cleanup": "^2.1.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-jsx": "^1.0.0",

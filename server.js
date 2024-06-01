@@ -1,44 +1,6 @@
 require('dotenv').config();
 
-// --------------- MULTITHREADING CONFIG ---------------
 // --------------- WORKERS INITIALIZATION ---------------
-
-// const fs = require("fs");
-// const path = require('path');
-// const os = require('os');
-// const cores = os.cpus().length;
-// const cluster = require('cluster');
-// const globalSensorData = require('./global_sensor_data');
-// const {Sensor} = require('./sensor_model');
-// const workers = new Map();
-// const { eventEmitter } = require('./master_discovery');
-// const sensorsPath = path.join(__dirname, 'sensors.json');
-// let sensorsPerWorker;
-// const http = require("http");
-// const sensors = require(sensorsPath);
-//
-// // TODO esto también tiene que ser para cuando se agrega uno aparte de la inicialización
-// eventEmitter.on('sensorIsRequestingToConnect', (sensorRegistrationJson) => {
-//     writeSensorJsonToFile(sensorRegistrationJson, sensorsPath);
-//
-//     const sensorsData = fs.readFileSync(sensorsPath, 'utf8');
-//     const sensors = JSON.parse(sensorsData);
-//     const sensorsArray = Object.entries(sensors).map(([key, value]) => ({key, ...value}));
-//     initializeSensors(sensorsArray);
-// });
-//
-// function writeSensorJsonToFile(sensorRegistrationJson, sensorsFilePath) {
-//     try {
-//         const data = fs.readFileSync(sensorsFilePath, 'utf8');
-//         const sensors = JSON.parse(data);
-//
-//         Object.assign(sensors, sensorRegistrationJson);
-//
-//         fs.writeFileSync(sensorsFilePath, JSON.stringify(sensors, null, 2), 'utf8');
-//     } catch (err) {
-//         console.error(`Error reading or writing file: ${err}`);
-//     }
-// }
 
 const fs = require("fs");
 const path = require('path');
@@ -46,85 +8,13 @@ const os = require('os');
 const cores = os.cpus().length;
 const cluster = require('cluster');
 const globalSensorData = require('./global_sensor_data');
-// const sensors = require('./sensors.json');
-// const sensorsArray = Object.entries(sensors).map(([key, value]) => ({key, ...value}));
-// const sensorsPerWorker = Math.ceil(sensorsArray.length / cores);
 const workers = new Map();
 const {Sensor} = require('./sensor_model');
-
-function initializeSensors() {
-    const sensors = {
-        "esp32cam1": {
-            "port": 8003,
-            "saveSensorData": true,
-            "detectObjects": true,
-            "class": "cam-instance",
-            "display": "Cam #1",
-            "commands": [
-                {
-                    "id": "ON_BOARD_LED",
-                    "name": "Camera flashlight",
-                    "class": "led-light",
-                    "state": 0
-                }
-            ]
-        },
-        "esp32cam2": {
-            "port": 8001,
-            "saveSensorData": true,
-            "detectObjects": true,
-            "class": "cam-instance",
-            "display": "Cam #2",
-            "commands": [
-                {
-                    "id": "ON_BOARD_LED",
-                    "name": "Camera flashlight",
-                    "class": "led-light",
-                    "state": 0
-                }
-            ]
-        }
-    };
-
-    const sensorsArray = Object.entries(sensors).map(([key, value]) => ({ id: key, ...value }));
-    const sensorsPerWorker = Math.ceil(sensorsArray.length / cores);
-
-    console.log(`Total CPUs (Logical cores): ${cores}`);
-    console.log(`Total sensors: ${sensorsArray.length}`);
-    console.log(JSON.stringify(sensorsArray, null, 2));
-    cluster.setupPrimary({exec: path.join(__dirname, 'sensor_worker.js')});
-
-    for (let i = 0; i < cores; i++) {
-        const workerSensors = sensorsArray.slice(i * sensorsPerWorker, (i + 1) * sensorsPerWorker);
-        if (workerSensors.length === 0) continue;
-
-        const worker = cluster.fork();
-        worker.send({update: 'sensor', data: workerSensors[0]});
-
-        worker.on('message', (message) => {
-            if (message.update === 'sensor') {
-                updateSensors(message.data);
-            }
-        });
-
-        workers.set(worker, workerSensors[0].port);
-    }
-}
 
 // --------------- SENSOR UPDATE ---------------
 
 function updateSensors(updatedSensor) {
     globalSensorData[updatedSensor.key] = updatedSensor;
-
-    // if (updatedSensor.sensors) {
-    //     for (const [sensorKey, sensorValue] of Object.entries(updatedSensor.sensors)) {
-    //         if (sensorKey === 'temp' && sensorValue > process.env.TEMP_THRESHOLD) {
-    //             sendEmail('Temperature Alert', `Sensor ${updatedSensor.key} exceeded the temperature threshold. Temperature: ${sensorValue}`);
-    //         } else if (sensorKey === 'hum' && sensorValue > process.env.HUM_THRESHOLD) {
-    //             sendEmail('Humidity Alert', `Sensor ${updatedSensor.key} exceeded the humidity threshold. Humidity: ${sensorValue}`);
-    //         }
-    //     }
-    // }
 }
 
 // --------------- WEBSOCKET MESSAGE HANDLING ---------------
@@ -143,8 +33,7 @@ async function handleWebSocketMessage(ws, data) {
                 const targetWorker = [...workers.entries()].find(([, port]) => port === sensorToUpdate.port)?.[0];
                 if (targetWorker) {
                     targetWorker.send({
-                        update: 'command',
-                        data: `${data.command.message.key}=${data.command.message.value}`
+                        update: 'command', data: `${data.command.message.key}=${data.command.message.value}`
                     });
                 }
             }
@@ -154,8 +43,7 @@ async function handleWebSocketMessage(ws, data) {
                 console.log(`Retrieved unique sensorIDs: ${JSON.stringify(sensorIDs, null, 2)}`);
 
                 ws.send(JSON.stringify({
-                    'operation': 'sendSensors',
-                    'sensorIDs': sensorIDs
+                    'operation': 'sendSensors', 'sensorIDs': sensorIDs
                 }));
             } catch (err) {
                 console.error(`Error getting sensorIDs: ${err}`);
@@ -167,8 +55,7 @@ async function handleWebSocketMessage(ws, data) {
                 console.log(`Retrieved sensor data for sensorId "${sensorId}" between "${startTime}" and "${endTime}": ${JSON.stringify(sensorData, null, 2)}`);
 
                 ws.send(JSON.stringify({
-                    'operation': 'sendSensorReadings',
-                    'sensorData': sensorData
+                    'operation': 'sendSensorReadings', 'sensorData': sensorData
                 }));
             } catch (err) {
                 console.error(`Error getting sensor data: ${err}`);
@@ -208,7 +95,7 @@ app.use('/react', express.static(path.join(__dirname, 'public/pages/react_test/b
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'public/pages/client1'));
 app.get('/client', (_req, res) => {
-    res.render('client', { env: process.env });
+    res.render('client', {env: process.env});
 });
 app.get('/client2', (_req, res) => {
     res.sendFile(path.resolve(__dirname, './public/pages/client2/client.ejs'));
@@ -219,7 +106,7 @@ app.get('/react/*', (_req, res) => {
 
 app.use(express.json());
 app.post('/api/config', (req, res) => {
-    const { TEMP_MIN_THRESHOLD, TEMP_MAX_THRESHOLD, HUM_THRESHOLD, EMAIL_USER, EMAIL_PASS, EMAIL_RECIPIENT } = req.body;
+    const {TEMP_MIN_THRESHOLD, TEMP_MAX_THRESHOLD, HUM_THRESHOLD, EMAIL_USER, EMAIL_PASS, EMAIL_RECIPIENT} = req.body;
 
     if (TEMP_MIN_THRESHOLD) process.env.TEMP_MIN_THRESHOLD = TEMP_MIN_THRESHOLD;
     if (TEMP_MAX_THRESHOLD) process.env.TEMP_MAX_THRESHOLD = TEMP_MAX_THRESHOLD;
@@ -231,14 +118,52 @@ app.post('/api/config', (req, res) => {
     res.send('Environment variables updated successfully');
 });
 
-const masterDiscovery = require('./master_discovery');
-const child_process = require("child_process");
+const http = require("http");
+const cleanup = require("node-cleanup");
 
 app.use(express.json());
 
-app.post('/isMaster', (req, res) => {
-    const sensorRegistrationJson = req.body;
-    masterDiscovery.isMaster(req, res, sensorRegistrationJson);
+
+app.post('/isMaster', (_req, res) => {
+    const sensorRegistrationJson = _req.body;
+    console.log("received request");
+    res.setHeader('Master', 'Yes');
+    res.status(200).send('Master server\r');
+    var ipAddress = _req.headers['x-forwarded-for'] || _req.connection.remoteAddress;
+
+    if (ipAddress.substr(0, 7) == "::ffff:") {
+        ipAddress = ipAddress.substr(7)
+    }
+    console.log("ESP32 making the request IP address is: " + ipAddress);
+
+    const clientIp = process.env.CLIENT_SERVER_IP;
+
+    cluster.setupPrimary({exec: path.join(__dirname, 'sensor_worker.js')});
+
+    const worker = cluster.fork();
+    worker.send({update: 'sensor', data: sensorRegistrationJson});
+
+    worker.on('message', (message) => {
+        if (message.update === 'sensor') {
+            updateSensors(message.data);
+        }
+    });
+
+    workers.set(worker, sensorRegistrationJson.wsPort);
+
+    setTimeout(() => {
+        let json = JSON.stringify({clientIp: clientIp});
+        const post_options = {
+            hostname: ipAddress, port: sensorRegistrationJson.appPort, method: "POST", path: "/iAmMaster", headers: {
+                "Content-Type": "application/json"
+            }
+        }
+
+        const post_request = http.request(post_options);
+
+        post_request.write(json)
+        post_request.end();
+    }, 10000);
 });
 
 app.listen(process.env.CLIENT_HTTP_PORT, () => {
@@ -264,27 +189,31 @@ Object.keys(ifaces).forEach(ifname => {
     });
 });
 
-
-initializeSensors();
-
 // --------------- ON SERVER SHUTDOWN ---------------
 function cleanupAndExit() {
     console.log('Server is shutting down...');
     for (const worker of workers.keys()) {
-        worker.send({ update: 'close' });
+        worker.send({update: 'close'});
     }
 
-    clientWs.close();
+    try {
+        clientWs.close();
+        console.log('WebSocket server has been closed');
+    } catch (error) {
+        console.error('Error when closing WebSocket server:', error);
+    }
 
     console.log('All workers have been closed');
-
-    // fs.writeFileSync(path.join(__dirname, 'sensors.json'), JSON.stringify({}, null, 2), 'utf8');
-    //
-    // console.log('All registered sensors have been deleted');
     console.log('Bye!');
 
     process.exit();
 }
 
-process.on("SIGINT", cleanupAndExit);
-process.on("SIGTERM", cleanupAndExit);
+cleanup((exitCode, signal) => {
+    console.log(".")
+    if (signal) {
+        cleanupAndExit();
+        process.kill(process.pid, signal);
+    }
+    return false;
+});

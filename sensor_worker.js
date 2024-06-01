@@ -213,7 +213,7 @@ async function main() {
         process.exit();
     }
 
-    server = new WebSocket.Server({ port: sensor_worker.port }, () => console.log(`WS Server is listening at ${sensor_worker.port}`));
+    server = new WebSocket.Server({ port: sensor_worker.wsPort }, () => console.log(`Master to Sensor WS Server is listening at ${sensor_worker.wsPort}`));
     server.on('connection', (ws) => {
         console.log('A new WebSocket connection has been established between master and streamer ' + sensor_worker.id);
 
@@ -326,104 +326,6 @@ async function main() {
         });
     });
 }
-
-
-// async function main() {
-//     await initialDataReceived;
-//
-//     // if (sensor_worker.detectObjects) {
-//     const model = await loadModel(testMode);
-//     // }
-//
-//     console.log('AI Model - ' + sensor_worker.detectObjects + ', Connection started for', sensor_worker.key);
-//
-//     if (!sensor_worker) {
-//         process.exit();
-//     }
-//
-//     const server = new WebSocket.Server({port: sensor_worker.port}, () => console.log(`WS Server is listening at ${sensor_worker.port}`));
-//     server.on('connection', (ws) => {
-//         ws.on('message', async (data) => {
-//             if (ws.readyState !== ws.OPEN) return;
-//
-//             if (command) {
-//                 ws.send(command);
-//                 command = null;
-//             }
-//
-//             // ----------------- DATA ARRIVED FROM SENSOR -----------------
-//             if (isTemperatureAndHumidityData(data)) {
-//                 sensor_worker.temp = getTemperatureFromData(data);
-//                 sensor_worker.hum = getHumidityFromData(data);
-//
-//
-//                 saveDataInDatabase(sensor_worker, data);
-//             } else if (isImage(data)) {
-//                 let img = getImageFromData(data);
-//
-//                 // await detectObjects(img, model, ws);
-//                 if (sensor_worker.detectObjects) {
-//                     counter++;
-//
-//                     if (counter == process.env.PREDICTION_FREQUENCY) {
-//                         console.log('****BBBBBBBBBBBB');
-//                         counter = 0;
-//
-//                         let imgTensor = tf.node.decodeImage(new Uint8Array(data), 3);
-//                         imgTensor = imgTensor.expandDims(0);
-//                         imgTensor = tf.image.resizeBilinear(imgTensor, [150, 75]);
-//
-//                         const predictions = await model.predict(imgTensor);
-//                         /*
-//                         predictions.forEach((prediction) => {
-//                             console.log(prediction.class + ' - ' + prediction.score);
-//                             if (validEntities.includes(prediction.class) && prediction.score > process.env.PREDICTION_SCORE_THRESHOLD) {
-//                                 console.log('****CCCCCCCCCCC');
-//                                 new fluidb(`./images/${prediction.class}/${Date.now()}`, { 'score': prediction.score, 'img': img, 'bbox': prediction.bbox });
-//                             }
-//                         });
-//                         */
-//                         listClasses = ["varroa", "pollen", "wasps", "cooling"];
-//                         console.log('predictions ---: ' + predictions);
-//                         for (let index = 0; index < predictions.length; index++) {
-//                             let scoreTensor = predictions[index];
-//                             let score = scoreTensor.dataSync()[0];
-//                             score = score < 0.000001 ? 0 : score;
-//                             console.log(listClasses[index] + ' - score: ' + score);
-//                             //new fluidb(`./images/${listClasses[index]}/${Date.now()}`, { 'img': img});
-//                         }
-//
-//
-//                         tf.dispose([imgTensor]);
-//                     }
-//                 }
-//
-//                 sensor_worker.image = img;
-//
-//                 // TODO hacer bd separada para guardar el conteo de abejas etc
-//                 /*
-//                 schema:
-//                 {
-//                     sensorId: 'esp32_1',
-//                     bee_count: 10,
-//                     bees_in: 2,
-//                     bees_out: 1,
-//                     varroa_bees:0,
-//                     pollen_bees: 0,
-//                     wasps: 0,
-//                     cooling: 0,
-//                     timestamp: '2021-08-29T12:00:00.000Z'
-//                  }
-//                  */
-//             } else {
-//                 // ----------------- COMMAND ARRIVED -----------------
-//                 handleCommand(data);
-//             }
-//
-//             process.send({update: 'sensor_worker', data: sensor_worker});
-//         });
-//     });
-// }
 
 main();
 

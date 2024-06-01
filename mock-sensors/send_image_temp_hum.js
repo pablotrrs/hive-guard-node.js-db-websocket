@@ -3,6 +3,7 @@ const fs = require("fs");
 const ffmpeg = require("ffmpeg");
 const WebSocket = require("ws");
 const pth = require("path");
+const cleanup = require('node-cleanup');
 const videoDir = pth.join(__dirname, './video');
 const firstVideoFile = fs.readdirSync(videoDir).find((file) => pth.extname(file) === ".mp4");
 const path = pth.join(videoDir, firstVideoFile);
@@ -80,3 +81,24 @@ module.exports = function (wsAddress) {
         console.error("WebSocket error:", err);
     });
 };
+
+function deleteExtractedFiles() {
+    fs.readdir(outputTo, (err, files) => {
+        if (err) throw err;
+
+        for (const file of files) {
+            fs.unlink(pth.join(outputTo, file), err => {
+                if (err) throw err;
+            });
+        }
+    });
+}
+
+cleanup((exitCode, signal) => {
+    console.log(".")
+    if (signal) {
+        deleteExtractedFiles();
+        process.kill(process.pid, signal);
+    }
+    return false;
+});

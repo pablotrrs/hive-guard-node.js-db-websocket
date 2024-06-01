@@ -1,4 +1,4 @@
-const setupWebSocket = require('./send_image_temp_hum');
+const connectWithMaster_AndSendDataOver = require('./send_image_temp_hum').connectWithMaster_AndSendDataOver;
 
 console.log('Starting mock sensor data streamer 2');
-setupWebSocket(`ws://127.0.0.1:8003`);
+connectWithMaster_AndSendDataOver('127.0.0.1', '8002', '9002')

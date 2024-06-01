@@ -214,6 +214,8 @@ async function main() {
     }
 
     server = new WebSocket.Server({ port: sensor_worker.wsPort }, () => console.log(`Master to Sensor WS Server is listening at ${sensor_worker.wsPort}`));
+    process.send({ update: 'workerInitialized', data: sensor_worker });
+
     server.on('connection', (ws) => {
         console.log('A new WebSocket connection has been established between master and streamer ' + sensor_worker.id);
 

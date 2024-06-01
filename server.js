@@ -129,41 +129,46 @@ app.post('/isMaster', (_req, res) => {
     console.log("received request");
     res.setHeader('Master', 'Yes');
     res.status(200).send('Master server\r');
-    var ipAddress = _req.headers['x-forwarded-for'] || _req.connection.remoteAddress;
-
-    if (ipAddress.substr(0, 7) == "::ffff:") {
-        ipAddress = ipAddress.substr(7)
-    }
-    console.log("ESP32 making the request IP address is: " + ipAddress);
+    console.log("ESP32 making the request IP address is: " + sensorRegistrationJson.ip);
 
     const clientIp = process.env.CLIENT_SERVER_IP;
 
     cluster.setupPrimary({exec: path.join(__dirname, 'sensor_worker.js')});
 
+    console.log("About to fork worker process...");
     const worker = cluster.fork();
+    console.log("Worker process forked.");
+
     worker.send({update: 'sensor', data: sensorRegistrationJson});
 
+    console.log("Setting up message listener...");
     worker.on('message', (message) => {
+        if (message.update === 'workerInitialized') {
+            console.log("(let him cook)")
+            console.log("all the mf data when about to hit sensor back", sensorRegistrationJson);
+            let json = JSON.stringify({clientIp: clientIp});
+            const post_options = {
+                hostname: sensorRegistrationJson.ip,
+                port: sensorRegistrationJson.appPort,
+                method: "POST",
+                path: "/iAmMaster",
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
+
+            const post_request = http.request(post_options);
+
+            post_request.write(json)
+            post_request.end();
+        }
         if (message.update === 'sensor') {
             updateSensors(message.data);
         }
     });
 
+    console.log("Message listener set up.");
     workers.set(worker, sensorRegistrationJson.wsPort);
-
-    setTimeout(() => {
-        let json = JSON.stringify({clientIp: clientIp});
-        const post_options = {
-            hostname: ipAddress, port: sensorRegistrationJson.appPort, method: "POST", path: "/iAmMaster", headers: {
-                "Content-Type": "application/json"
-            }
-        }
-
-        const post_request = http.request(post_options);
-
-        post_request.write(json)
-        post_request.end();
-    }, 10000);
 });
 
 app.listen(process.env.CLIENT_HTTP_PORT, () => {
@@ -213,7 +218,9 @@ cleanup((exitCode, signal) => {
     console.log(".")
     if (signal) {
         cleanupAndExit();
-        process.kill(process.pid, signal);
+        setTimeout(() => {
+            process.kill(process.pid, signal);
+        }, 10000);
     }
     return false;
 });

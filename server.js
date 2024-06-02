@@ -1,4 +1,20 @@
+const { exec } = require('child_process');
+const { fork } = require('child_process');
 require('dotenv').config();
+
+if (process.env.IS_DOCKER_COMPOSE === 'true') {
+    console.log('Mock sensor data streamer 1 running in docker-compose mode')
+    exec('nslookup db', (error, stdout, stderr) => {
+        if (error) {
+            console.error(`exec error: ${error}`);
+            return;
+        }
+        console.log(`nslookup output: ${stdout}`);
+        const ip = stdout.split('\n').filter(line => line.trim().startsWith('Address:')).pop().split(' ')[1];
+        console.log(`Database IP is: ${ip}`);
+        process.env.MONGODB_IP = ip;
+    });
+}
 
 // --------------- WORKERS INITIALIZATION ---------------
 
@@ -67,7 +83,8 @@ async function handleWebSocketMessage(ws, data) {
 
 // --------------- WEBSOCKET SERVER INITIALIZATION ---------------
 const connectedClients = new Set();
-const clientWs = new WebSocket.Server({port: process.env.CLIENT_WS_PORT}, () => console.log(`WS Server is listening at ${process.env.CLIENT_WS_PORT}`));
+// const clientWs = new WebSocket.Server({host: '127.0.0.1', port: process.env.CLIENT_WS_PORT}, () => console.log(`Client WS Server is listening at 127.0.0.1:${process.env.CLIENT_WS_PORT}`));
+const clientWs = new WebSocket.Server({host: getMfMasterServerIp(), port: process.env.CLIENT_WS_PORT}, () => console.log(`Client WS Server is listening at 127.0.0.1:${process.env.CLIENT_WS_PORT}`));
 
 setInterval(() => {
     for (const client of connectedClients) {
@@ -123,6 +140,24 @@ const cleanup = require("node-cleanup");
 
 app.use(express.json());
 
+function getMfMasterServerIp() {
+    const networkInterfaces = os.networkInterfaces();
+    let ip;
+    for (let name of Object.keys(networkInterfaces)) {
+        for (let net of networkInterfaces[name]) {
+            if (net.family === 'IPv4' && !net.internal) {
+                ip = net.address;
+                break;
+            }
+        }
+        if (ip) {
+            break;
+        }
+    }
+
+    process.env.MASTER_SERVER_IP = ip;
+    return ip;
+}
 
 app.post('/isMaster', (_req, res) => {
     const sensorRegistrationJson = _req.body;
@@ -131,21 +166,19 @@ app.post('/isMaster', (_req, res) => {
     res.status(200).send('Master server\r');
     console.log("ESP32 making the request IP address is: " + sensorRegistrationJson.ip);
 
-    const clientIp = process.env.CLIENT_SERVER_IP;
+    const clientIp = getMfMasterServerIp();
 
-    cluster.setupPrimary({exec: path.join(__dirname, 'sensor_worker.js')});
+    cluster.setupMaster({exec: path.join(__dirname, 'sensor_worker.js')});
 
     console.log("About to fork worker process...");
     const worker = cluster.fork();
-    console.log("Worker process forked.");
+    console.log("Worker process forked");
 
     worker.send({update: 'sensor', data: sensorRegistrationJson});
 
     console.log("Setting up message listener...");
     worker.on('message', (message) => {
         if (message.update === 'workerInitialized') {
-            console.log("(let him cook)")
-            console.log("all the mf data when about to hit sensor back", sensorRegistrationJson);
             let json = JSON.stringify({clientIp: clientIp});
             const post_options = {
                 hostname: sensorRegistrationJson.ip,

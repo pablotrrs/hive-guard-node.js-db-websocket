@@ -1,36 +1,48 @@
-const clientIp = window.env.CLIENT_SERVER_IP;
-const wsWithServer = new WebSocket(`ws://${clientIp}:${window.env.CLIENT_WS_PORT}`);
+const masterIp = window.env.MASTER_SERVER_IP;
+const port = window.env.CLIENT_WS_PORT;
+let wsWithMaster;
+
+function connectWebSocket() {
+    wsWithMaster = new WebSocket(`ws://${masterIp}:${port}`);
+
+    wsWithMaster.addEventListener('open', (event) => {
+        wsWithMaster.send(JSON.stringify({
+            'client': '8999',
+            'operation': 'connecting',
+            'data': {}
+        }));
+    });
+
+    wsWithMaster.addEventListener('error', (error) => {
+        console.error('WebSocket error:', error);
+        setTimeout(connectWebSocket, 5000);
+    });
+}
+
+connectWebSocket();
 
 let allDevices = new Map();
-
-wsWithServer.addEventListener('open', (event) => {
-    wsWithServer.send(JSON.stringify({
-        'client': '8999',
-        'operation': 'connecting',
-        'data': {}
-    }));
-});
 
 document.addEventListener('DOMContentLoaded', (event) => {
     let mainWrapper = document.querySelector('#main-wrapper');
     let serverInfo = createElement('div', {class: 'server-info'});
-    serverInfo.appendChild(createElement('h2', {}, 'Master server, ip:' + clientIp));
+    serverInfo.appendChild(createElement('h2', {}, 'Master server, ip:' + masterIp));
     let details = createElement('details', {});
     details.appendChild(createElement('summary', {}, 'Connected streamers: ' + allDevices.size));
     serverInfo.appendChild(details);
     mainWrapper.insertBefore(serverInfo, mainWrapper.firstChild);
 });
 
-window.onload = function() {
+window.onload = function () {
 
     let serverInfo = createElement('div', {class: 'server-info'});
-    serverInfo.appendChild(createElement('h2', {}, 'Master server, ip:' + clientIp));
+    serverInfo.appendChild(createElement('h2', {}, 'Master server, ip:' + masterIp));
     // no anda lo de la tab no se por que
     let details = createElement('details', {});
     details.appendChild(createElement('summary', {}, 'Connected streamers: ' + allDevices.size));
 };
 
-wsWithServer.onmessage = message => {
+wsWithMaster.onmessage = message => {
     let md = JSON.parse(message.data);
     let incomingData = md.devices[0];
     console.log('incomingData', incomingData);
@@ -54,7 +66,6 @@ wsWithServer.onmessage = message => {
 
     let detailsSummary = document.querySelector('.server-info details summary');
     detailsSummary.innerHTML = 'Connected streamers: ' + allDevices.size;
-
     // let details = document.querySelector('.server-info details');
     // let devicesData = '';
     // allDevices.forEach(device => {

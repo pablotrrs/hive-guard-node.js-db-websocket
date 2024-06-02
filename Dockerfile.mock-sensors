@@ -1,0 +1,7 @@
+FROM node:22
+WORKDIR /usr/src/app
+COPY ./package*.json ./
+RUN npm install
+RUN apt-get update && apt-get install -y ffmpeg dnsutils
+COPY ./mock-sensors/ .
+CMD [ "node", "sensor1.js" ]

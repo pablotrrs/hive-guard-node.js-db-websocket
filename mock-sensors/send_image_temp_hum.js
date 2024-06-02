@@ -1,4 +1,5 @@
 // common logic for mock sensors
+const os = require('os');
 const fs = require("fs");
 const ffmpeg = require("ffmpeg");
 const WebSocket = require("ws");
@@ -19,7 +20,7 @@ const extractImages = () => {
             new ffmpeg(path, function (err, video) {
                 if (!err) {
                     video.fnExtractFrameToJPG(outputTo, {
-                        every_n_frames: 1, // Extract every frame
+                        every_n_frames: 1,
                         file_name: "image_%t_%s",
                     }, function (error, files) {
                         if (error) {
@@ -69,9 +70,29 @@ const sendTemperatureAndHumidity = (ws) => {
     }, 1000);
 };
 
+function getMockSensorIp() {
+    const networkInterfaces = os.networkInterfaces();
+    let ip;
+    for (let name of Object.keys(networkInterfaces)) {
+        for (let net of networkInterfaces[name]) {
+            if (net.family === 'IPv4' && !net.internal) {
+                ip = net.address;
+                break;
+            }
+        }
+        if (ip) {
+            break;
+        }
+    }
+    return ip;
+}
+
 function getSensorRegistrationData(wsPort, expressAppPort) {
     const randomId = Math.floor(Math.random() * 1000000);
 
+    const ip = getMockSensorIp();
+
+    console.log(`IP of mock sensor data streamer: ${ip}`)
     let sensorData = {
         "id": `esp32cam${randomId}`,
         "wsPort": `${wsPort}`,
@@ -80,7 +101,7 @@ function getSensorRegistrationData(wsPort, expressAppPort) {
         "detectObjects": true,
         "class": "cam-instance",
         "display": `Cam #${randomId}`,
-        "ip": "127.0.0.1",
+        "ip": `${ip}`,
         "commands": [{
             "id": "ON_BOARD_LED", "name": "Camera flashlight", "class": "led-light", "state": 0
         }]
@@ -157,7 +178,6 @@ exports.connectWithMaster_AndSendDataOver = function (masterIp, wsPort, appPort)
         // 1st we hit master for him to create the ws with the port we gave him and send its ip back,
         // 2nd we connect to the created ws and start sending images and sensor data
         app.post('/iAmMaster', (req, res) => {
-            console.log("this is not being executed!")
             let masterServerIp = req.body.clientIp;
 
             console.log(`Master server IP saved successfully: ${masterServerIp}`);

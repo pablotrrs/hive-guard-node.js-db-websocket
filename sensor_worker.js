@@ -58,7 +58,6 @@ process.on('message', (message) => {
 
     if (message.update === 'sensor') {
         sensor_worker = message.data;
-        console.log("all the mf data", sensor_worker)
         console.log('Connection prepared for', sensor_worker.id);
 
         resolveInitialData();
@@ -251,7 +250,7 @@ async function main() {
                     counter++;
 
                     if (counter == process.env.PREDICTION_FREQUENCY) {
-                        console.log('****BBBBBBBBBBBB');
+                        // console.log('****BBBBBBBBBBBB');
                         counter = 0;
 
                         let imgTensor = tf.node.decodeImage(new Uint8Array(data), 3);
@@ -269,16 +268,14 @@ async function main() {
                         });
                         */
                         listClasses = ["varroa","pollen","wasps","cooling"];
-                        console.log('predictions ---: ' + predictions);
+                        // console.log('predictions ---: ' + predictions);
                         for (let index = 0; index < predictions.length; index++) {
                             let scoreTensor = predictions[index];
                             let score = scoreTensor.dataSync()[0];
                             score = score < 0.000001 ? 0 : score;
-                            console.log(listClasses[index] + ' - score: ' + score);
+                            // console.log(listClasses[index] + ' - score: ' + score);
                             //new fluidb(`./images/${listClasses[index]}/${Date.now()}`, { 'img': img});
                         }
-
-
 
                         tf.dispose([imgTensor]);
                     }

@@ -135,6 +135,13 @@ app.post('/api/config', (req, res) => {
     res.send('Environment variables updated successfully');
 });
 
+let alerts = [];
+app.get('/api/alerts', (req, res) => {
+
+    res.send(alerts);
+    alerts = [];
+});
+
 const http = require("http");
 const cleanup = require("node-cleanup");
 
@@ -197,6 +204,9 @@ app.post('/isMaster', (_req, res) => {
         }
         if (message.update === 'sensor') {
             updateSensors(message.data);
+        }
+        if (message.update === 'newAlert') {
+            alerts.push(message.data);
         }
     });
 

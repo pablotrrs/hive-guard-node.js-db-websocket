@@ -183,19 +183,33 @@ function checkTempAndHumEnvVars() {
     }
 }
 
+function getAlertData(key, temperature, temp) {
+    return {
+        sensorId: key,
+        alertType: temperature,
+        value: temp
+    }
+}
+
 function sendEmailIfTempAndHumAreCursed(sensor_worker) {
     checkTempAndHumEnvVars();
 
     if (sensor_worker.temp > process.env.TEMP_MAX_THRESHOLD) {
-        sendEmail('Temperature Alert', `Sensor ${sensor_worker.key} exceeded the temperature threshold. Temperature: ${sensor_worker.temp}`);
+        process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'TEMP_MAX', sensor_worker.temp)});
+
+        sendEmail('Temperature Alert', `Sensor ${sensor_worker.id} exceeded the temperature threshold. Temperature: ${sensor_worker.temp}`);
     }
 
     if (sensor_worker.temp < process.env.TEMP_MIN_THRESHOLD) {
-        sendEmail('Temperature Alert', `Sensor ${sensor_worker.key} is below the temperature threshold. Temperature: ${sensor_worker.temp}`);
+        process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'TEMP_MIN', sensor_worker.temp)});
+
+        sendEmail('Temperature Alert', `Sensor ${sensor_worker.id} is below the temperature threshold. Temperature: ${sensor_worker.temp}`);
     }
 
     if (sensor_worker.hum > process.env.HUM_THRESHOLD) {
-        sendEmail('Humidity Alert', `Sensor ${sensor_worker.key} exceeded the humidity threshold. Humidity: ${sensor_worker.hum}`);
+        process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'HUM', sensor_worker.hum)});
+
+        sendEmail('Humidity Alert', `Sensor ${sensor_worker.id} exceeded the humidity threshold. Humidity: ${sensor_worker.hum}`);
     }
 }
 

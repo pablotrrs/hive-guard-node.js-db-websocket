@@ -142,6 +142,11 @@ app.get('/api/alerts', (req, res) => {
     alerts = [];
 });
 
+app.get('/api/healthcheck', (req, res) => {
+
+    res.send('OK');
+});
+
 const http = require("http");
 const cleanup = require("node-cleanup");
 

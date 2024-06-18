@@ -153,22 +153,29 @@ const cleanup = require("node-cleanup");
 app.use(express.json());
 
 function getMfMasterServerIp() {
-    const networkInterfaces = os.networkInterfaces();
-    let ip;
-    for (let name of Object.keys(networkInterfaces)) {
-        for (let net of networkInterfaces[name]) {
-            if (net.family === 'IPv4' && !net.internal) {
-                ip = net.address;
+    if (process.env.NODE_ENV === 'production') {
+
+        process.env.MASTER_SERVER_IP = process.env.NGROK_URL;
+        console.log("Master server public IP is: " + process.env.MASTER_SERVER_IP);
+    } else {
+        // Get local IP address for development environment
+        const networkInterfaces = os.networkInterfaces();
+        let ip;
+        for (let name of Object.keys(networkInterfaces)) {
+            for (let net of networkInterfaces[name]) {
+                if (net.family === 'IPv4' && !net.internal) {
+                    ip = net.address;
+                    break;
+                }
+            }
+            if (ip) {
                 break;
             }
         }
-        if (ip) {
-            break;
-        }
-    }
 
-    process.env.MASTER_SERVER_IP = ip;
-    return ip;
+        process.env.MASTER_SERVER_IP = ip;
+        return ip;
+    }
 }
 
 app.post('/isMaster', (_req, res) => {
@@ -220,7 +227,20 @@ app.post('/isMaster', (_req, res) => {
 });
 
 app.listen(process.env.CLIENT_HTTP_PORT, () => {
-    console.log(`HTTP server starting on ${process.env.CLIENT_HTTP_PORT} with process ID ${process.pid}`);
+    const networkInterfaces = os.networkInterfaces();
+    let serverIp;
+    for (let name of Object.keys(networkInterfaces)) {
+        for (let net of networkInterfaces[name]) {
+            if (net.family === 'IPv4' && !net.internal) {
+                serverIp = net.address;
+                break;
+            }
+        }
+        if (serverIp) {
+            break;
+        }
+    }
+    console.log(`HTTP server starting on ${process.env.CLIENT_HTTP_PORT} with process ID ${process.pid} and IP ${serverIp}`);
 });
 
 // log the server ip address

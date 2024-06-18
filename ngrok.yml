@@ -1,0 +1,11 @@
+# TODO ver cómo hacer que agarre este valor de la variable de entorno
+authtoken: ADD ME
+web_addr: 0.0.0.0:8000
+update: false
+log: stdout
+version: 2
+
+tunnels:
+  app:
+    addr: host.docker.internal:8000
+    proto: http

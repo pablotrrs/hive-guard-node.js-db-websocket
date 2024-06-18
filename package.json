@@ -17,6 +17,7 @@
     "@mapbox/node-pre-gyp": "^1.0.11",
     "@tensorflow-models/coco-ssd": "^2.2.3",
     "@tensorflow/tfjs-node": "^3.12.0",
+    "axios": "^1.7.2",
     "bcrypt": "^5.1.1",
     "bson": "^4.4.0",
     "dotenv": "^16.4.5",

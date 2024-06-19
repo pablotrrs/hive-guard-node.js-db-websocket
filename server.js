@@ -166,6 +166,11 @@ const cleanup = require("node-cleanup");
 app.use(express.json());
 
 function getMfMasterServerIp() {
+    if (process.env.IS_DOCKER_COMPOSE === 'true') {
+        console.log("Running in Docker Compose mode. Master server IP is: " + process.env.DOCKER_HOST_IP);
+        return process.env.DOCKER_HOST_IP;
+    }
+
     const networkInterfaces = os.networkInterfaces();
     let localIp;
     for (let name of Object.keys(networkInterfaces)) {
@@ -193,59 +198,6 @@ function getMfMasterServerIp() {
 
     return localIp;
 }
-
-// app.post('/isMaster', (_req, res) => {
-//     const sensorRegistrationJson = _req.body;
-//     console.log("received request");
-//     res.setHeader('Master', 'Yes');
-//     res.status(200).send('Master server\r');
-//     console.log("ESP32 making the request IP address is: " + sensorRegistrationJson.ip);
-//
-//     const clientIp = getMfMasterServerIp();
-//
-//     cluster.setupMaster({exec: path.join(__dirname, 'sensor_worker.js')});
-//
-//     console.log("About to fork worker process...");
-//     const worker = cluster.fork();
-//     console.log("Worker process forked");
-//
-//     worker.send({update: 'sensor', data: sensorRegistrationJson});
-//
-//     console.log("Setting up message listener...");
-//     worker.on('message', (message) => {
-//         if (message.update === 'workerInitialized') {
-//             let json = JSON.stringify({clientIp: clientIp});
-//             const post_options = {
-//                 hostname: sensorRegistrationJson.ip,
-//                 port: sensorRegistrationJson.appPort,
-//                 method: "POST",
-//                 path: "/iAmMaster",
-//                 headers: {
-//                     "Content-Type": "application/json"
-//                 }
-//             }
-//
-//             const post_request = http.request(post_options);
-//
-//             post_request.on('error', (error) => {
-//                 console.error(`Failed to hit streamer back :( `, error);
-//             });
-//
-//             post_request.write(json);
-//             post_request.end();
-//         }
-//         if (message.update === 'sensor') {
-//             updateSensors(message.data);
-//         }
-//         if (message.update === 'newAlert') {
-//             alerts.push(message.data);
-//         }
-//     });
-//
-//     console.log("Message listener set up.");
-//     workers.set(worker, sensorRegistrationJson.wsPort);
-// });
-
 
 const dgram = require('dgram');
 const udpServer = dgram.createSocket('udp4');

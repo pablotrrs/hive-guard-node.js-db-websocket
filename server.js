@@ -250,29 +250,27 @@ function getMfMasterServerIp() {
 const dgram = require('dgram');
 const udpServer = dgram.createSocket('udp4');
 
-udpServer.on('message', (msg, rinfo) => {
-    console.log(`Server received: ${msg} from ${rinfo.address}:${rinfo.port}`);
-
-    // Parse the incoming message
-    const sensorRegistrationJson = JSON.parse(msg);
-
+app.post('/isMaster', (_req, res) => {
+    const sensorRegistrationJson = _req.body;
+    console.log("received request");
+    res.setHeader('Master', 'Yes');
+    res.status(200).send('Master server\r');
     console.log("ESP32 making the request IP address is: " + sensorRegistrationJson.ip);
 
     const clientIp = getMfMasterServerIp();
-
-    cluster.setupMaster({exec: path.join(__dirname, 'sensor_worker.js')});
+    cluster.setupMaster({ exec: path.join(__dirname, 'sensor_worker.js') });
 
     console.log("About to fork worker process...");
     const worker = cluster.fork();
     console.log("Worker process forked");
 
-    worker.send({update: 'sensor', data: sensorRegistrationJson});
+    worker.send({ update: 'sensor', data: sensorRegistrationJson });
 
     console.log("Setting up message listener...");
     worker.on('message', (message) => {
         if (message.update === 'workerInitialized') {
-            let json = JSON.stringify({clientIp: clientIp});
-
+            console.log("Worker process initialized, about to hit streamer back in ip " + sensorRegistrationJson.ip + " and port " + sensorRegistrationJson.appPort);
+            let json = JSON.stringify({ clientIp: clientIp });
             const post_options = {
                 hostname: sensorRegistrationJson.ip,
                 port: sensorRegistrationJson.appPort,
@@ -304,9 +302,7 @@ udpServer.on('message', (msg, rinfo) => {
     workers.set(worker, sensorRegistrationJson.wsPort);
 });
 
-udpServer.bind(process.env.CLIENT_UDP_PORT);
-
-const server = app.listen(process.env.CLIENT_HTTP_PORT, () => {
+const httpServer = app.listen(process.env.CLIENT_HTTP_PORT, () => {
     const networkInterfaces = os.networkInterfaces();
     let serverIp;
     for (let name of Object.keys(networkInterfaces)) {
@@ -323,8 +319,30 @@ const server = app.listen(process.env.CLIENT_HTTP_PORT, () => {
     console.log(`HTTP server starting on ${process.env.CLIENT_HTTP_PORT} with process ID ${process.pid} and IP ${serverIp}`);
 });
 
-server.on('error', (error) => {
+httpServer.on('error', (error) => {
     console.error(`Failed to bind to port ${process.env.CLIENT_HTTP_PORT}:`, error);
+});
+
+udpServer.on('message', (msg, rinfo) => {
+    console.log(`Server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+    try {
+        const jsonData = JSON.parse(msg.toString()); // Parse the incoming JSON
+        console.log("Received JSON data: ", jsonData);
+
+        if (jsonData) {
+            const responseMessage = `MASTER_SERVER_IP:${rinfo.address}`;
+            udpServer.send(responseMessage, 0, responseMessage.length, rinfo.port, rinfo.address, (err) => {
+                if (err) console.error('Error sending response:', err);
+                else console.log('Response sent to', rinfo.address);
+            });
+        }
+    } catch (e) {
+        console.error('Failed to parse JSON data:', e);
+    }
+});
+
+udpServer.bind(process.env.CLIENT_UDP_PORT, () => {
+    console.log(`Master Server listening for UDP broadcasts on port ${process.env.CLIENT_UDP_PORT}`);
 });
 
 // log the server ip address

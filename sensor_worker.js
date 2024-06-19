@@ -16,6 +16,7 @@ let validEntities = ['cat', 'dog', 'person', 'laptop', 'tv'];
 let counter = 0;
 let initialDataReceived;
 let resolveInitialData;
+let server;
 
 initialDataReceived = new Promise((resolve) => {
     resolveInitialData = resolve;
@@ -49,9 +50,15 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 process.on('message', (message) => {
+    if (message.update === 'close') {
+        server.close(() => {
+            console.log('WebSocket server closed');
+        });
+    }
+
     if (message.update === 'sensor') {
         sensor_worker = message.data;
-        console.log('Connection prepared for', sensor_worker.key);
+        console.log('Connection prepared for', sensor_worker.id);
 
         resolveInitialData();
     } else if (message.update === 'command') {
@@ -176,19 +183,33 @@ function checkTempAndHumEnvVars() {
     }
 }
 
+function getAlertData(key, temperature, temp) {
+    return {
+        sensorId: key,
+        alertType: temperature,
+        value: temp
+    }
+}
+
 function sendEmailIfTempAndHumAreCursed(sensor_worker) {
     checkTempAndHumEnvVars();
 
     if (sensor_worker.temp > process.env.TEMP_MAX_THRESHOLD) {
-        sendEmail('Temperature Alert', `Sensor ${sensor_worker.key} exceeded the temperature threshold. Temperature: ${sensor_worker.temp}`);
+        process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'TEMP_MAX', sensor_worker.temp)});
+
+        sendEmail('Temperature Alert', `Sensor ${sensor_worker.id} exceeded the temperature threshold. Temperature: ${sensor_worker.temp}`);
     }
 
     if (sensor_worker.temp < process.env.TEMP_MIN_THRESHOLD) {
-        sendEmail('Temperature Alert', `Sensor ${sensor_worker.key} is below the temperature threshold. Temperature: ${sensor_worker.temp}`);
+        process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'TEMP_MIN', sensor_worker.temp)});
+
+        sendEmail('Temperature Alert', `Sensor ${sensor_worker.id} is below the temperature threshold. Temperature: ${sensor_worker.temp}`);
     }
 
     if (sensor_worker.hum > process.env.HUM_THRESHOLD) {
-        sendEmail('Humidity Alert', `Sensor ${sensor_worker.key} exceeded the humidity threshold. Humidity: ${sensor_worker.hum}`);
+        process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'HUM', sensor_worker.hum)});
+
+        sendEmail('Humidity Alert', `Sensor ${sensor_worker.id} exceeded the humidity threshold. Humidity: ${sensor_worker.hum}`);
     }
 }
 
@@ -199,14 +220,26 @@ async function main() {
     const model = await loadModel(testMode);
     // }
 
-    console.log('AI Model - ' + sensor_worker.detectObjects + ', Connection started for', sensor_worker.key);
+    console.log('AI Model - ' + sensor_worker.detectObjects + ', Connection started for', sensor_worker.id);
 
     if (!sensor_worker) {
         process.exit();
     }
 
-    const server = new WebSocket.Server({ port: sensor_worker.port }, () => console.log(`WS Server is listening at ${sensor_worker.port}`));
+    server = new WebSocket.Server({ port: sensor_worker.wsPort }, () => console.log(`Master to Sensor WS Server is listening at ${sensor_worker.wsPort}`));
+    process.send({ update: 'workerInitialized', data: sensor_worker });
+
     server.on('connection', (ws) => {
+        console.log('A new WebSocket connection has been established between master and streamer ' + sensor_worker.id);
+
+        ws.on('close', () => {
+            console.log('A WebSocket connection has been closed between master and streamer ' + sensor_worker.id);
+        });
+
+        ws.on('error', (err) => {
+            console.error('Error in WebSocket connection between master and streamer ' + sensor_worker.id, err);
+        });
+
         ws.on('message', async (data) => {
             //console.log(data);
             if (ws.readyState !== ws.OPEN) return;
@@ -231,7 +264,7 @@ async function main() {
                     counter++;
 
                     if (counter == process.env.PREDICTION_FREQUENCY) {
-                        console.log('****BBBBBBBBBBBB');
+                        // console.log('****BBBBBBBBBBBB');
                         counter = 0;
 
                         let imgTensor = tf.node.decodeImage(new Uint8Array(data), 3);
@@ -249,16 +282,14 @@ async function main() {
                         });
                         */
                         listClasses = ["varroa","pollen","wasps","cooling"];
-                        console.log('predictions ---: ' + predictions);
+                        // console.log('predictions ---: ' + predictions);
                         for (let index = 0; index < predictions.length; index++) {
                             let scoreTensor = predictions[index];
                             let score = scoreTensor.dataSync()[0];
                             score = score < 0.000001 ? 0 : score;
-                            console.log(listClasses[index] + ' - score: ' + score);
+                            // console.log(listClasses[index] + ' - score: ' + score);
                             //new fluidb(`./images/${listClasses[index]}/${Date.now()}`, { 'img': img});
                         }
-
-
 
                         tf.dispose([imgTensor]);
                     }
@@ -308,104 +339,6 @@ async function main() {
         });
     });
 }
-
-
-// async function main() {
-//     await initialDataReceived;
-//
-//     // if (sensor_worker.detectObjects) {
-//     const model = await loadModel(testMode);
-//     // }
-//
-//     console.log('AI Model - ' + sensor_worker.detectObjects + ', Connection started for', sensor_worker.key);
-//
-//     if (!sensor_worker) {
-//         process.exit();
-//     }
-//
-//     const server = new WebSocket.Server({port: sensor_worker.port}, () => console.log(`WS Server is listening at ${sensor_worker.port}`));
-//     server.on('connection', (ws) => {
-//         ws.on('message', async (data) => {
-//             if (ws.readyState !== ws.OPEN) return;
-//
-//             if (command) {
-//                 ws.send(command);
-//                 command = null;
-//             }
-//
-//             // ----------------- DATA ARRIVED FROM SENSOR -----------------
-//             if (isTemperatureAndHumidityData(data)) {
-//                 sensor_worker.temp = getTemperatureFromData(data);
-//                 sensor_worker.hum = getHumidityFromData(data);
-//
-//
-//                 saveDataInDatabase(sensor_worker, data);
-//             } else if (isImage(data)) {
-//                 let img = getImageFromData(data);
-//
-//                 // await detectObjects(img, model, ws);
-//                 if (sensor_worker.detectObjects) {
-//                     counter++;
-//
-//                     if (counter == process.env.PREDICTION_FREQUENCY) {
-//                         console.log('****BBBBBBBBBBBB');
-//                         counter = 0;
-//
-//                         let imgTensor = tf.node.decodeImage(new Uint8Array(data), 3);
-//                         imgTensor = imgTensor.expandDims(0);
-//                         imgTensor = tf.image.resizeBilinear(imgTensor, [150, 75]);
-//
-//                         const predictions = await model.predict(imgTensor);
-//                         /*
-//                         predictions.forEach((prediction) => {
-//                             console.log(prediction.class + ' - ' + prediction.score);
-//                             if (validEntities.includes(prediction.class) && prediction.score > process.env.PREDICTION_SCORE_THRESHOLD) {
-//                                 console.log('****CCCCCCCCCCC');
-//                                 new fluidb(`./images/${prediction.class}/${Date.now()}`, { 'score': prediction.score, 'img': img, 'bbox': prediction.bbox });
-//                             }
-//                         });
-//                         */
-//                         listClasses = ["varroa", "pollen", "wasps", "cooling"];
-//                         console.log('predictions ---: ' + predictions);
-//                         for (let index = 0; index < predictions.length; index++) {
-//                             let scoreTensor = predictions[index];
-//                             let score = scoreTensor.dataSync()[0];
-//                             score = score < 0.000001 ? 0 : score;
-//                             console.log(listClasses[index] + ' - score: ' + score);
-//                             //new fluidb(`./images/${listClasses[index]}/${Date.now()}`, { 'img': img});
-//                         }
-//
-//
-//                         tf.dispose([imgTensor]);
-//                     }
-//                 }
-//
-//                 sensor_worker.image = img;
-//
-//                 // TODO hacer bd separada para guardar el conteo de abejas etc
-//                 /*
-//                 schema:
-//                 {
-//                     sensorId: 'esp32_1',
-//                     bee_count: 10,
-//                     bees_in: 2,
-//                     bees_out: 1,
-//                     varroa_bees:0,
-//                     pollen_bees: 0,
-//                     wasps: 0,
-//                     cooling: 0,
-//                     timestamp: '2021-08-29T12:00:00.000Z'
-//                  }
-//                  */
-//             } else {
-//                 // ----------------- COMMAND ARRIVED -----------------
-//                 handleCommand(data);
-//             }
-//
-//             process.send({update: 'sensor_worker', data: sensor_worker});
-//         });
-//     });
-// }
 
 main();
 

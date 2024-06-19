@@ -1,0 +1,46 @@
+services:
+  db:
+    image: mongo
+    volumes:
+      - dbdata:/data/db
+    logging:
+      driver: none
+  ngrok:
+    container_name: master-server-ngrok-1
+    image: wernight/ngrok
+    ports:
+      - "8081:8081"
+      - "4040:4040"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        ngrok start --all
+    volumes:
+      - .:/home/ngrok/.ngrok2/
+    depends_on:
+      - server
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+#    command: npm run start
+    command: /bin/sh ./lookup_ngrok_url.sh
+    environment:
+      - IS_DOCKER_COMPOSE=true
+      - NODE_ENV=production
+    ports:
+      # - 8000:8000
+      - "8000-8080:8000-8080"
+      - "8082-9000:8082-9000"
+    depends_on:
+      - db
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  dbdata: {}

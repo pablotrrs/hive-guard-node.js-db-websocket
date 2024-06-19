@@ -1,0 +1,53 @@
+services:
+  db:
+    image: mongo
+    volumes:
+      - dbdata:/data/db
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run start
+    environment:
+      - IS_DOCKER_COMPOSE=true
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "10m"
+            max-file: "3"
+  sensor1:
+    build:
+      dockerfile: Dockerfile.mock-sensors
+    command: /bin/bash -c "sleep 10 && node sensor1.js"
+    environment:
+      - IS_DOCKER_COMPOSE=true
+      - WS_PORT=8001
+      - APP_PORT=9001
+    depends_on:
+      - server
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  sensor2:
+    build:
+      dockerfile: Dockerfile.mock-sensors
+    command: /bin/bash -c "sleep 10 && node sensor2.js"
+    environment:
+      - IS_DOCKER_COMPOSE=true
+      - WS_PORT=8002
+      - APP_PORT=9002
+    depends_on:
+      - server
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  dbdata: {}

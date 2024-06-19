@@ -207,3 +207,62 @@ body {
   transform: rotate(-180deg);
   width: 21px;
 }
+
+.server-info {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.server-info h2 {
+    font-size: 2em;
+    margin: 0;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+.server-info .local-ip {
+    color: green;
+    font-family: Arial, sans-serif;
+}
+
+.server-info .ip-value {
+    font-size: 1.5em;
+    color: lightgray;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.server-info details {
+    font-size: 2em;
+    cursor: pointer;
+    border: none;
+    padding: 10px;
+    margin-top: 10px;
+    grid-column: span 2;
+}
+
+.copy-button {
+    background-color: white;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    transition-duration: 0.4s;
+    padding: 5px;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+}
+
+.copy-button::before {
+    content: "";
+    background-image: url(../../icons/copy.svg);
+    background-size: cover;
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+}

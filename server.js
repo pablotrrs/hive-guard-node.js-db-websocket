@@ -153,29 +153,31 @@ const cleanup = require("node-cleanup");
 app.use(express.json());
 
 function getMfMasterServerIp() {
-    if (process.env.NODE_ENV === 'production') {
-
-        process.env.MASTER_SERVER_IP = process.env.NGROK_URL;
-        console.log("Master server public IP is: " + process.env.MASTER_SERVER_IP);
-    } else {
-        // Get local IP address for development environment
-        const networkInterfaces = os.networkInterfaces();
-        let ip;
-        for (let name of Object.keys(networkInterfaces)) {
-            for (let net of networkInterfaces[name]) {
-                if (net.family === 'IPv4' && !net.internal) {
-                    ip = net.address;
-                    break;
-                }
-            }
-            if (ip) {
+    const networkInterfaces = os.networkInterfaces();
+    let localIp;
+    for (let name of Object.keys(networkInterfaces)) {
+        for (let net of networkInterfaces[name]) {
+            if (net.family === 'IPv4' && !net.internal) {
+                localIp = net.address;
                 break;
             }
         }
-
-        process.env.MASTER_SERVER_IP = ip;
-        return ip;
+        if (localIp) {
+            break;
+        }
     }
+
+    process.env.MASTER_SERVER_LOCAL_IP = localIp;
+
+    // set public IP address
+    if (process.env.NODE_ENV === 'production') {
+
+        process.env.MASTER_SERVER_PUBLIC_IP = process.env.NGROK_URL;
+        console.log("Master server public IP is: " + process.env.MASTER_SERVER_IP);
+
+    }
+
+    return localIp;
 }
 
 app.post('/isMaster', (_req, res) => {

@@ -1,9 +1,10 @@
-const masterIp = window.env.MASTER_SERVER_IP;
+const local_MasterIp = window.env.MASTER_SERVER_LOCAL_IP;
+const public_MasterIp = window.env.MASTER_SERVER_PUBLIC_IP;
 const port = window.env.CLIENT_WS_PORT;
 let wsWithMaster;
 
 function connectWebSocket() {
-    wsWithMaster = new WebSocket(`ws://${masterIp}:${port}`);
+    wsWithMaster = new WebSocket(`ws://${local_MasterIp}:${port}`);
 
     wsWithMaster.addEventListener('open', (event) => {
         wsWithMaster.send(JSON.stringify({
@@ -26,7 +27,29 @@ let allDevices = new Map();
 document.addEventListener('DOMContentLoaded', (event) => {
     let mainWrapper = document.querySelector('#main-wrapper');
     let serverInfo = createElement('div', {class: 'server-info'});
-    serverInfo.appendChild(createElement('h2', {}, 'Master server, ip:' + masterIp));
+
+    if(public_MasterIp) {
+        let publicIpTitle = createElement('h2', {}, 'Master server public url:');
+        serverInfo.appendChild(publicIpTitle);
+        let publicIpValue = createElement('div', {class: 'ip-value'}, public_MasterIp);
+        serverInfo.appendChild(publicIpValue);
+        let copyButton = createElement('button', {class: 'copy-button'});
+        copyButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(public_MasterIp);
+        });
+        serverInfo.appendChild(copyButton);
+    }
+
+    let localIpTitle = createElement('h2', {}, 'Master server local ip:');
+    serverInfo.appendChild(localIpTitle);
+    let localIpValue = createElement('div', {class: 'ip-value'}, local_MasterIp);
+    serverInfo.appendChild(localIpValue);
+    let copyButton = createElement('button', {class: 'copy-button'});
+    copyButton.addEventListener('click', () => {
+        navigator.clipboard.writeText(local_MasterIp);
+    });
+    serverInfo.appendChild(copyButton);
+
     let details = createElement('details', {});
     details.appendChild(createElement('summary', {}, 'Connected streamers: ' + allDevices.size));
     serverInfo.appendChild(details);

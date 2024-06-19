@@ -324,10 +324,10 @@ httpServer.on('error', (error) => {
 });
 
 udpServer.on('message', (msg, rinfo) => {
-    console.log(`Server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+    console.log(`Server got UDP broadcast message: ${msg} from ${rinfo.address}:${rinfo.port}`);
     try {
-        const jsonData = JSON.parse(msg.toString()); // Parse the incoming JSON
-        console.log("Received JSON data: ", jsonData);
+        const jsonData = JSON.parse(msg.toString());
+        console.log("Parsed received JSON data from UDP broadcast: ", jsonData);
 
         if (jsonData) {
             const responseMessage = `MASTER_SERVER_IP:${rinfo.address}`;

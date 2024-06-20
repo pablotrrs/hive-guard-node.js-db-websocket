@@ -144,6 +144,9 @@ app.post('/api/config', (req, res) => {
   if (EMAIL_PASS) process.env.EMAIL_PASS = EMAIL_PASS;
   if (EMAIL_RECIPIENT) process.env.EMAIL_RECIPIENT = EMAIL_RECIPIENT;
 
+  for (const worker of workers.keys()) {
+    worker.send({ update: 'updatedEnvVars', data: req.body });
+  }
   res.send('Environment variables updated successfully');
 });
 

@@ -64,6 +64,12 @@ process.on('message', (message) => {
   } else if (message.update === 'command') {
     command = message.data;
   }
+
+  if (message.update === 'updatedEnvVars') {
+    for (const key in message.data) {
+      process.env[key] = message.data[key];
+    }
+  }
 });
 
 async function loadModel(testMode = false) {

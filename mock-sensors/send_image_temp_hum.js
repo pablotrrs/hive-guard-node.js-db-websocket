@@ -6,6 +6,8 @@ const WebSocket = require("ws");
 const pth = require("path");
 const cleanup = require('node-cleanup');
 const http = require("http");
+const dgram = require('dgram');
+const udpServer = dgram.createSocket('udp4');
 const videoDir = pth.join(__dirname, './video');
 const firstVideoFile = fs.readdirSync(videoDir).find((file) => pth.extname(file) === ".mp4");
 const path = pth.join(videoDir, firstVideoFile);
@@ -13,6 +15,7 @@ const outputTo = pth.join(__dirname, 'images');
 const fps = 30;
 
 let images = [];
+let masterIp = '';
 
 const extractImages = () => {
     return new Promise((resolve, reject) => {
@@ -112,54 +115,56 @@ function getSensorRegistrationData(wsPort, expressAppPort) {
 
 // ----------------------------MASTER DISCOVERY----------------------------
 
-// irl streamer should hit every ip in the network until it finds the master
-function hitMasterSoItHitsBack_WithItsIp(masterIp, _wsPort) {
-    wsPort = _wsPort;
-    appPort = Number(wsPort) + 1000;
-    return new Promise((resolve, reject) => {
-        const sensorData = getSensorRegistrationData(wsPort, appPort);
+udpServer.on('error', (err) => {
+    console.log(`udp server error:\n${err.stack}`);
+    udpServer.close();
+});
 
-        const options = {
-            hostname: masterIp,
-            port: 8000,
-            path: '/isMaster',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': sensorData.length
-            }
-        };
+udpServer.on('message', (msg, rinfo) => {
+    console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+    masterIp = rinfo.address;
+});
 
-        const req = http.request(options, (res) => {
-            console.log(`statusCode: ${res.statusCode}`);
+udpServer.on('listening', () => {
+    const address = udpServer.address();
+    console.log(`server listening ${address.address}:${address.port}`);
 
-            res.on('data', (d) => {
-                console.log('Received: ' + d);
-            });
+    // Set broadcast after the server has started listening
+    udpServer.setBroadcast(true);
+});
 
-            res.on('end', () => {
-                resolve();
-            });
-        });
+// Bind to port 12345 if running in Docker Compose mode, otherwise bind to port 12346
+if (process.env.IS_DOCKER_COMPOSE === 'true') {
+    udpServer.bind(12345);
+} else {
+    udpServer.bind(12346); // Binds the server to port 12346
+}
 
-        req.on('error', (error) => {
-            reject(error);
-        });
+// Broadcasts a message to the network
+function broadcastMessage(message) {
+    const messageBuffer = Buffer.from(message);
 
-        req.write(sensorData);
-        req.end();
-    }).catch((error) => {
-        if (error.code === 'ECONNREFUSED') {
-            throw new Error('Master server should be running before this mock esp32 streamer!');
+    udpServer.send(messageBuffer, 0, messageBuffer.length, 12345, '255.255.255.255', function(err, bytes) {
+        if (err) {
+            console.log('Error broadcasting message: ', err);
         } else {
-            throw error;
+            console.log('Message broadcasted successfully');
         }
     });
 }
 
-exports.connectWithMaster_AndSendDataOver = function (masterIp, wsPort, appPort) {
+function broadcastMasterSoItHitsBack_WithItsIp(_wsPort) {
+    return new Promise((resolve, reject) => {
+        let wsPort = _wsPort;
+        let appPort = Number(wsPort) + 1000;
+        const sensorData = getSensorRegistrationData(wsPort, appPort);
+        broadcastMessage(sensorData);
+        resolve();
+    });
+}
 
-    hitMasterSoItHitsBack_WithItsIp(masterIp, wsPort).then(() => {
+exports.connectWithMaster_AndSendDataOver = function (wsPort, appPort) {
+    broadcastMasterSoItHitsBack_WithItsIp(wsPort).then(() => {
         const express = require('express');
         const app = express();
 
@@ -175,7 +180,8 @@ exports.connectWithMaster_AndSendDataOver = function (masterIp, wsPort, appPort)
 
         app.use(express.json());
 
-        // 1st we hit master for him to create the ws with the port we gave him and send its ip back,
+        // 1st we broadcast a udp packet for master to receive it and create the ws with the port we gave him and
+        // send its ip back,
         // 2nd we connect to the created ws and start sending images and sensor data
         app.post('/iAmMaster', (req, res) => {
             let masterServerIp = req.body.clientIp;

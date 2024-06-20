@@ -1,4 +1,3 @@
-// const dns = require('dns');
 const { exec } = require('child_process');
 const { fork } = require('child_process');
 require('dotenv').config();
@@ -120,7 +119,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
 app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use('/react', express.static(path.join(__dirname, 'public/pages/react_test/build')));
 
@@ -167,28 +165,11 @@ const cleanup = require("node-cleanup");
 app.use(express.json());
 
 function getMfMasterServerIp() {
-  // set public IP address
   if (process.env.NODE_ENV === 'production') {
 
     process.env.MASTER_SERVER_PUBLIC_IP = process.env.NGROK_URL;
     console.log("Master server public IP is: " + process.env.MASTER_SERVER_IP);
-
   }
-
-  // if (process.env.IS_DOCKER_COMPOSE === 'true') {
-  //
-  //   dns.lookup('host.docker.internal', (err, address, family) => {
-  //     if (err) {
-  //       console.error(`DNS lookup error: ${err}`);
-  //       return;
-  //     }
-  //     console.log(`HOST IP is: ${address}`);
-  //     process.env.MASTER_SERVER_LOCAL_IP = address;
-  //
-  //     console.log("Master server local IP is: " + process.env.MASTER_SERVER_LOCAL_IP);
-  //     return address;
-  //   });
-  // }
 
   const networkInterfaces = os.networkInterfaces();
   let localIp;

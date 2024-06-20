@@ -12,7 +12,7 @@ if (process.env.IS_DOCKER_COMPOSE === 'true') {
         const ip = stdout.split('\n').filter(line => line.trim().startsWith('Address:')).pop().split(' ')[1];
         console.log(`IP of the master server: ${ip}`);
         console.log('Starting mock sensor data streamer 2');
-        connectWithMaster_AndSendDataOver(ip, process.env.WS_PORT, process.env.APP_PORT)
+        connectWithMaster_AndSendDataOver(process.env.WS_PORT, process.env.CLIENT_HTTP_PORT)
     });
 } else {
     const ip = '127.0.0.1';

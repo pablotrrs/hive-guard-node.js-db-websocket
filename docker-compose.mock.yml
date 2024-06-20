@@ -21,6 +21,7 @@ services:
             max-file: "3"
   sensor1:
     build:
+      context: .
       dockerfile: Dockerfile.mock-sensors
     command: /bin/bash -c "sleep 10 && node sensor1.js"
     environment:
@@ -36,6 +37,7 @@ services:
         max-file: "3"
   sensor2:
     build:
+      context: .
       dockerfile: Dockerfile.mock-sensors
     command: /bin/bash -c "sleep 10 && node sensor2.js"
     environment:

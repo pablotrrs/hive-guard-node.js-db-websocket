@@ -6,7 +6,8 @@
     "start": "node server.js",
     "start-streamer1": "node mock-sensors/sensor1.js",
     "start-streamer2": "node mock-sensors/sensor2.js",
-    "start-all": "npm run start & sleep 5 & npm run start-streamer1 & npm run start-streamer2"
+    "start-streamers": "node mock-sensors/sensor1.js & node mock-sensors/sensor2.js",
+    "start-all": "npm run start & node wait_for_server.js && npm run start-streamers"
   },
   "keywords": [],
   "author": "",

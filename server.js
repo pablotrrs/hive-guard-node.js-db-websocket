@@ -156,9 +156,12 @@ app.get('/api/alerts', (req, res) => {
 
 
 let hives = new Map();
-app.get('/api/hives', (req, res) => {
-
-  res.send(hives);
+app.get('/api/hives', async (req, res) => {
+  let hivesData = Array.from(hives.entries()).map(([id, getData]) => ({ id, data: getData() }));
+  for (let hive of hivesData) {
+    hive.data = await hive.data;
+  }
+  res.send(hivesData);
 });
 
 app.get('/api/healthcheck', (req, res) => {
@@ -233,11 +236,13 @@ async function getLocationFromIP(ip) {
     }
 }
 
-async function pimpHiveData(sensorRegistrationJson) {
-  const location = await getLocationFromIP(sensorRegistrationJson.ip);
-  return {
-    ...sensorRegistrationJson,
-    location: location
+function pimpHiveData(sensorRegistrationJson) {
+  return async function() {
+    const location = await getLocationFromIP(sensorRegistrationJson.ip);
+    return {
+      ...sensorRegistrationJson,
+      location: location
+    };
   };
 }
 

@@ -277,7 +277,7 @@ function handleSensorRegistration(sensorRegistrationJson) {
       post_request.write(json);
       post_request.end();
 
-      hives.push(pimpHiveData(sensorRegistrationJson));
+      hives.set(sensorRegistrationJson.id, pimpHiveData(sensorRegistrationJson));
     }
     if (message.update === 'sensor') {
       updateSensors(message.data);

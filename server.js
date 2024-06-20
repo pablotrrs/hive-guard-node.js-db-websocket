@@ -155,7 +155,7 @@ app.get('/api/alerts', (req, res) => {
 });
 
 
-let hives = [];
+let hives = new Map();
 app.get('/api/hives', (req, res) => {
 
   res.send(hives);
@@ -222,6 +222,25 @@ httpServer.on('error', (error) => {
   console.error(`Failed to bind to port ${process.env.CLIENT_HTTP_PORT}:`, error);
 });
 
+const axios = require('axios');
+
+async function getLocationFromIP(ip) {
+    try {
+        const response = await axios.get(`http://ip-api.com/json/${ip}`);
+        return response.data;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+async function pimpHiveData(sensorRegistrationJson) {
+  const location = await getLocationFromIP(sensorRegistrationJson.ip);
+  return {
+    ...sensorRegistrationJson,
+    location: location
+  };
+}
+
 function handleSensorRegistration(sensorRegistrationJson) {
   console.log("ESP32 making the request IP address is: " + sensorRegistrationJson.ip);
 
@@ -258,12 +277,23 @@ function handleSensorRegistration(sensorRegistrationJson) {
       post_request.write(json);
       post_request.end();
 
-      hives.push(sensorRegistrationJson);
+      hives.push(pimpHiveData(sensorRegistrationJson));
     }
     if (message.update === 'sensor') {
       updateSensors(message.data);
     }
     if (message.update === 'newAlert') {
+      // the alert is added to the alerts array of the hive, and the alerts array of the server
+      let hive = hives.get(message.data.sensorId);
+      if (hive) {
+        if (!hive.alerts) {
+          hive.alerts = [];
+        }
+        hive.alerts.push(message.data);
+      } else {
+        hives.set(message.data.sensorId, { ...message.data, alerts: [message.data] });
+      }
+      
       alerts.push(message.data);
     }
   });

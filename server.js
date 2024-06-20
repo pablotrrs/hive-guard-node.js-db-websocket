@@ -159,9 +159,9 @@ app.get('/api/alerts', (req, res) => {
 
 
 let hives = new Map();
-app.get('/api/hives', (req, res) => {
-  let hivesData = Array.from(hives.entries()).map(([id, data]) => ({ id, data }));
-  res.send(hivesData);
+app.get('/api/hives', async (req, res) => {
+  
+  res.send(Array.from(hives.entries()))
 });
 
 app.get('/api/healthcheck', (req, res) => {
@@ -283,8 +283,9 @@ function handleSensorRegistration(sensorRegistrationJson) {
       post_request.end();
 
       // hives.set(sensorRegistrationJson.id, pimpHiveData(sensorRegistrationJson));
-      let hiveData = pimpHiveData(sensorRegistrationJson);
-      hives.set(sensorRegistrationJson.id, hiveData);
+      // let hiveData = pimpHiveData(sensorRegistrationJson);
+      // hives.set(sensorRegistrationJson.id, hiveData);
+      hives.set(sensorRegistrationJson.id, sensorRegistrationJson);
     }
     if (message.update === 'sensor') {
       updateSensors(message.data);

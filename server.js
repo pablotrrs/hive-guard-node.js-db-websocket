@@ -159,11 +159,8 @@ app.get('/api/alerts', (req, res) => {
 
 
 let hives = new Map();
-app.get('/api/hives', async (req, res) => {
-  let hivesData = Array.from(hives.entries()).map(([id, getData]) => ({ id, data: getData() }));
-  for (let hive of hivesData) {
-    hive.data = await hive.data;
-  }
+app.get('/api/hives', (req, res) => {
+  let hivesData = Array.from(hives.entries()).map(([id, data]) => ({ id, data }));
   res.send(hivesData);
 });
 
@@ -285,7 +282,9 @@ function handleSensorRegistration(sensorRegistrationJson) {
       post_request.write(json);
       post_request.end();
 
-      hives.set(sensorRegistrationJson.id, pimpHiveData(sensorRegistrationJson));
+      // hives.set(sensorRegistrationJson.id, pimpHiveData(sensorRegistrationJson));
+      let hiveData = pimpHiveData(sensorRegistrationJson);
+      hives.set(sensorRegistrationJson.id, hiveData);
     }
     if (message.update === 'sensor') {
       updateSensors(message.data);
@@ -301,7 +300,7 @@ function handleSensorRegistration(sensorRegistrationJson) {
       } else {
         hives.set(message.data.sensorId, { ...message.data, alerts: [message.data] });
       }
-      
+
       alerts.push(message.data);
     }
   });

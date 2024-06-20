@@ -154,6 +154,13 @@ app.get('/api/alerts', (req, res) => {
   alerts = [];
 });
 
+
+let hives = [];
+app.get('/api/hives', (req, res) => {
+
+  res.send(hives);
+});
+
 app.get('/api/healthcheck', (req, res) => {
 
   res.send('OK');
@@ -250,6 +257,8 @@ function handleSensorRegistration(sensorRegistrationJson) {
 
       post_request.write(json);
       post_request.end();
+
+      hives.push(sensorRegistrationJson);
     }
     if (message.update === 'sensor') {
       updateSensors(message.data);

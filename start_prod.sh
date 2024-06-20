@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the host's IP address
-HOST_IP=$(ip -4 addr show scope global dev eth0 | grep inet | awk '{print $2}' | cut -d / -f 1)
+HOST_IP=$(/sbin/ip route | awk '/default/ { print $3 }') echo "Host IP: $HOST_IP"
 
 # Export it as an environment variable
 export DOCKER_HOST_IP=$HOST_IP
@@ -49,3 +49,4 @@ node -r dotenv/config server.js NGROK_URL=$NGROK_URL
 
 # Start Docker Compose
 docker-compose up
+

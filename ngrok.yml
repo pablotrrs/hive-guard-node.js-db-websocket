@@ -1,3 +1,5 @@
+# TODO ver cómo hacer que agarre este valor de la variable de entorno
+authtoken:
 web_addr: 0.0.0.0:8000
 update: false
 log: stdout

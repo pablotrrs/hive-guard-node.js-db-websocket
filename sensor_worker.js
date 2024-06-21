@@ -5,9 +5,12 @@ const fs = require('fs');
 const tf = require('@tensorflow/tfjs-node');
 const MockModel = require('./test/mock-model');
 const modelBeeAlarmed = tf.io.fileSystem("./test/model.json");
-const {SensorData_Database} = require('./sensor_model');
+const {SensorWeatherData_Database} = require('./sensor_model');
+const {SensorDetectionsData_Database} = require('./detections_model');
 const sendEmail = require('./send_email.js');
 require('dotenv').config();
+const mongoose = require('mongoose');
+const { Decimal128 } = require('bson'); 
 
 let testMode = false;
 let sensor_worker;
@@ -92,7 +95,6 @@ async function detectObjects(img, model, ws) {
         counter++;
 
         if (counter == process.env.PREDICTION_FREQUENCY) {
-            console.log('****BBBBBBBBBBBB');
             counter = 0;
 
             let imgTensor = tf.node.decodeImage(new Uint8Array(data), 3);
@@ -139,7 +141,7 @@ function getHumidityFromData(data) {
 
 function saveTempAndHumInDatabase(sensor, data) {
     const sensorData_ToBeSaved = {
-        sensorId: sensor_worker.key
+        sensorId: sensor_worker.id
     };
 
     const readings = data.toString().split(',');
@@ -153,7 +155,13 @@ function saveTempAndHumInDatabase(sensor, data) {
     }
 
     if (sensor.saveSensorData) {
-        SensorData_Database.saveSensorData(sensorData_ToBeSaved);
+        SensorWeatherData_Database.saveSensorData(sensorData_ToBeSaved);
+    }
+}
+
+function saveDetectionsInDatabase(sensor, data) {
+    if (sensor.saveSensorData) {
+        SensorDetectionsData_Database.saveSensorData(data);
     }
 }
 
@@ -252,7 +260,6 @@ async function main() {
             if (isTemperatureAndHumidityData(data)) {
                 sensor_worker.temp = getTemperatureFromData(data);
                 sensor_worker.hum = getHumidityFromData(data);
-
                 sendEmailIfTempAndHumAreCursed(sensor_worker);
                 saveTempAndHumInDatabase(sensor_worker, data);
             }
@@ -264,7 +271,6 @@ async function main() {
                     counter++;
 
                     if (counter == process.env.PREDICTION_FREQUENCY) {
-                        // console.log('****BBBBBBBBBBBB');
                         counter = 0;
 
                         let imgTensor = tf.node.decodeImage(new Uint8Array(data), 3);
@@ -282,13 +288,40 @@ async function main() {
                         });
                         */
                         listClasses = ["varroa","pollen","wasps","cooling"];
-                        // console.log('predictions ---: ' + predictions);
+                        //console.log('predictions ---: ' + predictions);
+                        
                         for (let index = 0; index < predictions.length; index++) {
+                            let dataToInsert = {
+                                sensorId: sensor_worker.id,
+                                varroa_score: 0,
+                                pollen_score: 0,
+                                wasps_score: 0,
+                                cooling_score: 0
+                            };
+                            
                             let scoreTensor = predictions[index];
                             let score = scoreTensor.dataSync()[0];
+                            let theClass = listClasses[index];
                             score = score < 0.000001 ? 0 : score;
-                            // console.log(listClasses[index] + ' - score: ' + score);
-                            //new fluidb(`./images/${listClasses[index]}/${Date.now()}`, { 'img': img});
+                            //console.log(theClass + ' - score: ' + score);
+                            if (theClass === "varroa" && score !== 0) {
+                                dataToInsert.varroa_score = Decimal128.fromString(score.toString());
+                            }
+                            if (theClass === "pollen" && score !== 0) {
+                                dataToInsert.pollen_score = Decimal128.fromString(score.toString());
+                            }
+                            if (theClass === "wasps" && score >= 0.99999) {
+                                dataToInsert.wasps_score = Decimal128.fromString(score.toString());
+                            }
+                            if (theClass === "cooling" && score >= 0.01) {
+                                dataToInsert.cooling_score = Decimal128.fromString(score.toString());
+                            }
+
+                            if (dataToInsert.varroa_score !== 0 || dataToInsert.pollen_score !== 0 ||
+                                dataToInsert.wasps_score !== 0 || dataToInsert.cooling_score !== 0
+                            ) {
+                                saveDetectionsInDatabase(sensor_worker, dataToInsert);
+                            }
                         }
 
                         tf.dispose([imgTensor]);

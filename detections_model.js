@@ -1,11 +1,13 @@
-const mongoose = require('./config/mongoose_config');
+const mongoose = require('mongoose');
+const { Decimal128 } = require('bson');
 
 const sensorSchema = new mongoose.Schema({
     sensorId: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
-    // Add other sensor values as needed
-    temp: Number,
-    hum: Number,
+    varroa_score: { type: Decimal128 },
+    pollen_score: { type: Decimal128 },
+    wasps_score: { type: Decimal128 },
+    cooling_score: { type: Decimal128 }
 });
 
 sensorSchema.statics.getAllSensorsData = async function () {
@@ -69,6 +71,7 @@ sensorSchema.statics.getSensorDataByIdBetweenTimestamps = async function (sensor
 };
 
 sensorSchema.statics.saveSensorData = function (sensorsObj) {
+    console.log('****asd: ' + sensorsObj);
     this.create(sensorsObj)
         .then(() => {
             console.debug(`Sensor data saved successfully: ${JSON.stringify(sensorsObj)}`);
@@ -81,9 +84,9 @@ sensorSchema.statics.saveSensorData = function (sensorsObj) {
     return Promise.resolve(true);
 };
 
-const SensorWeatherData_Database = mongoose.model('Sensor', sensorSchema);
+const SensorDetectionsData_Database = mongoose.model('SensorDetections', sensorSchema);
 
 module.exports = {
     mongoose,
-    SensorWeatherData_Database: SensorWeatherData_Database
+    SensorDetectionsData_Database: SensorDetectionsData_Database
 };

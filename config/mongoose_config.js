@@ -38,7 +38,8 @@ if (process.env.IS_DOCKER_COMPOSE === 'true') {
         connectToDatabase(uri);
     });
 } else {
-    const uri = `mongodb://${process.env.MONGODB_IP}:${process.env.MONGODB_PORT}/${process.env.MONGODB_NAME}`;
+    //const uri = `mongodb://${process.env.MONGODB_IP}:${process.env.MONGODB_PORT}/${process.env.MONGODB_NAME}`;
+    const uri = `mongodb+srv://ptorres:SPq5PuGgw3QpwaYf@hive-guard-p.vr9tc8v.mongodb.net/`;
     console.log(`Connecting to MongoDB at ${uri}`);
     connectToDatabase(uri);
 }

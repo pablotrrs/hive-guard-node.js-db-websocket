@@ -21,12 +21,13 @@ services:
             max-file: "3"
   sensor1:
     build:
+      context: .
       dockerfile: Dockerfile.mock-sensors
     command: /bin/bash -c "sleep 10 && node sensor1.js"
     environment:
       - IS_DOCKER_COMPOSE=true
       - WS_PORT=8001
-      - APP_PORT=9001
+      - CLIENT_HTTP_PORT=9001
     depends_on:
       - server
     logging:
@@ -36,12 +37,13 @@ services:
         max-file: "3"
   sensor2:
     build:
+      context: .
       dockerfile: Dockerfile.mock-sensors
     command: /bin/bash -c "sleep 10 && node sensor2.js"
     environment:
       - IS_DOCKER_COMPOSE=true
       - WS_PORT=8002
-      - APP_PORT=9002
+      - CLIENT_HTTP_PORT=9002
     depends_on:
       - server
     logging:

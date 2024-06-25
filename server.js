@@ -83,8 +83,9 @@ async function handleWebSocketMessage(ws, data) {
 
 // --------------- WEBSOCKET SERVER INITIALIZATION ---------------
 const connectedClients = new Set();
-// const clientWs = new WebSocket.Server({host: '127.0.0.1', port: process.env.CLIENT_WS_PORT}, () => console.log(`Client WS Server is listening at 127.0.0.1:${process.env.CLIENT_WS_PORT}`));
-const clientWs = new WebSocket.Server({ host: getMfMasterServerIp(), port: process.env.CLIENT_WS_PORT }, () => console.log(`Client WS Server is listening at 127.0.0.1:${process.env.CLIENT_WS_PORT}`));
+const clientWs = new WebSocket.Server({
+  host: getMfMasterServerIp(), port: process.env.CLIENT_WS_PORT
+}, () => console.log(`Client WS Server is listening at 127.0.0.1:${process.env.CLIENT_WS_PORT}`));
 
 setInterval(() => {
   for (const client of connectedClients) {
@@ -118,7 +119,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
 app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use('/react', express.static(path.join(__dirname, 'public/pages/react_test/build')));
 
@@ -144,6 +144,9 @@ app.post('/api/config', (req, res) => {
   if (EMAIL_PASS) process.env.EMAIL_PASS = EMAIL_PASS;
   if (EMAIL_RECIPIENT) process.env.EMAIL_RECIPIENT = EMAIL_RECIPIENT;
 
+  for (const worker of workers.keys()) {
+    worker.send({ update: 'updatedEnvVars', data: req.body });
+  }
   res.send('Environment variables updated successfully');
 });
 
@@ -154,6 +157,13 @@ app.get('/api/alerts', (req, res) => {
   alerts = [];
 });
 
+
+let hives = new Map();
+app.get('/api/hives', async (req, res) => {
+  
+  res.send(Array.from(hives.entries()))
+});
+
 app.get('/api/healthcheck', (req, res) => {
 
   res.send('OK');
@@ -161,9 +171,16 @@ app.get('/api/healthcheck', (req, res) => {
 
 const http = require("http");
 const cleanup = require("node-cleanup");
-const { log } = require('console');
+
+app.use(express.json());
 
 function getMfMasterServerIp() {
+  if (process.env.NODE_ENV === 'production') {
+
+    process.env.MASTER_SERVER_PUBLIC_IP = process.env.NGROK_URL;
+    console.log("Master server public IP is: " + process.env.MASTER_SERVER_IP);
+  }
+
   const networkInterfaces = os.networkInterfaces();
   let localIp;
   for (let name of Object.keys(networkInterfaces)) {
@@ -181,26 +198,58 @@ function getMfMasterServerIp() {
   process.env.MASTER_SERVER_LOCAL_IP = localIp;
   console.log("Master server local IP is: " + process.env.MASTER_SERVER_IP);
 
-  // set public IP address
-  if (process.env.NODE_ENV === 'production') {
-
-    process.env.MASTER_SERVER_PUBLIC_IP = process.env.NGROK_URL;
-    console.log("Master server public IP is: " + process.env.MASTER_SERVER_IP);
-
-  }
-
   return localIp;
 }
 
-app.post('/isMaster', (_req, res) => {
-  const sensorRegistrationJson = _req.body;
-  console.log("received request");
-  res.setHeader('Master', 'Yes');
-  res.status(200).send('Master server\r');
+const dgram = require('dgram');
+const udpServer = dgram.createSocket('udp4');
+
+const httpServer = app.listen(process.env.CLIENT_HTTP_PORT, () => {
+  const networkInterfaces = os.networkInterfaces();
+  let serverIp;
+  for (let name of Object.keys(networkInterfaces)) {
+    for (let net of networkInterfaces[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        serverIp = net.address;
+        break;
+      }
+    }
+    if (serverIp) {
+      break;
+    }
+  }
+  console.log(`HTTP server starting on ${process.env.CLIENT_HTTP_PORT} with process ID ${process.pid} and IP ${serverIp}`);
+});
+
+httpServer.on('error', (error) => {
+  console.error(`Failed to bind to port ${process.env.CLIENT_HTTP_PORT}:`, error);
+});
+
+const axios = require('axios');
+
+async function getLocationFromIP(ip) {
+    try {
+        const response = await axios.get(`http://ip-api.com/json/${ip}`);
+        return response.data;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function pimpHiveData(sensorRegistrationJson) {
+  return async function() {
+    const location = await getLocationFromIP(sensorRegistrationJson.ip);
+    return {
+      ...sensorRegistrationJson,
+      location: location
+    };
+  };
+}
+
+function handleSensorRegistration(sensorRegistrationJson) {
   console.log("ESP32 making the request IP address is: " + sensorRegistrationJson.ip);
 
   const clientIp = getMfMasterServerIp();
-
   cluster.setupMaster({ exec: path.join(__dirname, 'sensor_worker.js') });
 
   console.log("About to fork worker process...");
@@ -232,38 +281,56 @@ app.post('/isMaster', (_req, res) => {
 
       post_request.write(json);
       post_request.end();
+
+      // hives.set(sensorRegistrationJson.id, pimpHiveData(sensorRegistrationJson));
+      // let hiveData = pimpHiveData(sensorRegistrationJson);
+      // hives.set(sensorRegistrationJson.id, hiveData);
+      hives.set(sensorRegistrationJson.id, sensorRegistrationJson);
     }
     if (message.update === 'sensor') {
       updateSensors(message.data);
     }
     if (message.update === 'newAlert') {
+      // the alert is added to the alerts array of the hive, and the alerts array of the server
+      let hive = hives.get(message.data.sensorId);
+      if (hive) {
+        if (!hive.alerts) {
+          hive.alerts = [];
+        }
+        hive.alerts.push(message.data);
+      } else {
+        hives.set(message.data.sensorId, { ...message.data, alerts: [message.data] });
+      }
+
       alerts.push(message.data);
     }
   });
 
   console.log("Message listener set up.");
   workers.set(worker, sensorRegistrationJson.wsPort);
+}
+
+udpServer.on('message', (msg, rinfo) => {
+  console.log(`Server got UDP broadcast message: ${msg} from ${rinfo.address}:${rinfo.port}`);
+  try {
+    const jsonData = JSON.parse(msg.toString());
+    console.log("Parsed received JSON data from UDP broadcast: ", jsonData);
+
+    if (jsonData) {
+      const responseMessage = `Master server`;
+      udpServer.send(responseMessage, 0, responseMessage.length, rinfo.port, rinfo.address, (err) => {
+        if (err) console.error('Error sending response:', err);
+        else console.log('Response sent to', jsonData.ip);
+      });
+      handleSensorRegistration(jsonData)
+    }
+  } catch (e) {
+    console.error('Failed to parse JSON data:', e);
+  }
 });
 
-const server = app.listen(process.env.CLIENT_HTTP_PORT);
-
-server.on('error', (error) => {
-  console.error('Failed to bind to port ' + process.env.CLIENT_HTTP_PORT + ', ' + error);
-}, () => {
-  const networkInterfaces = os.networkInterfaces();
-  let serverIp;
-  for (let name of Object.keys(networkInterfaces)) {
-    for (let net of networkInterfaces[name]) {
-      if (net.family === 'IPv4' && !net.internal) {
-        serverIp = net.address;
-        break;
-      }
-    }
-    if (serverIp) {
-      break;
-    }
-  }
-  console.log('HTTP server starting on ' + process.env.CLIENT_HTTP_PORT + ' with process ID ' + process.pid + ' and IP ' + serverIp);
+udpServer.bind(process.env.CLIENT_UDP_PORT, () => {
+  console.log(`Master Server listening for UDP broadcasts on port ${process.env.CLIENT_UDP_PORT}`);
 });
 
 // log the server ip address

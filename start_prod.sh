@@ -1,6 +1,13 @@
 #!/bin/bash
 
-echo "Starting lookup_ngrok_url.sh script..."
+# Get the host's IP address
+HOST_IP=$(/sbin/ip route | awk '/default/ { print $3 }') echo "Host IP: $HOST_IP"
+
+# Export it as an environment variable
+export DOCKER_HOST_IP=$HOST_IP
+export NGROK_AUTH_TOKEN=$(grep NGROK_AUTH_TOKEN .env | cut -d '=' -f2)
+
+echo "Starting ngrok public url lookup..."
 
 # Dynamically get the ID of the ngrok container
 echo "Getting the ID of the ngrok container..."
@@ -39,3 +46,7 @@ export NGROK_URL=$NGROK_URL
 # Start your server
 echo "Starting server.js..."
 node -r dotenv/config server.js NGROK_URL=$NGROK_URL
+
+# Start Docker Compose
+docker-compose up
+

@@ -144,6 +144,9 @@ app.post('/api/config', (req, res) => {
   if (EMAIL_PASS) process.env.EMAIL_PASS = EMAIL_PASS;
   if (EMAIL_RECIPIENT) process.env.EMAIL_RECIPIENT = EMAIL_RECIPIENT;
 
+  for (const worker of workers.keys()) {
+    worker.send({ update: 'updatedEnvVars', data: req.body });
+  }
   res.send('Environment variables updated successfully');
 });
 
@@ -152,6 +155,13 @@ app.get('/api/alerts', (req, res) => {
 
   res.send(alerts);
   alerts = [];
+});
+
+
+let hives = new Map();
+app.get('/api/hives', async (req, res) => {
+  
+  res.send(Array.from(hives.entries()))
 });
 
 app.get('/api/healthcheck', (req, res) => {
@@ -215,6 +225,27 @@ httpServer.on('error', (error) => {
   console.error(`Failed to bind to port ${process.env.CLIENT_HTTP_PORT}:`, error);
 });
 
+const axios = require('axios');
+
+async function getLocationFromIP(ip) {
+    try {
+        const response = await axios.get(`http://ip-api.com/json/${ip}`);
+        return response.data;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function pimpHiveData(sensorRegistrationJson) {
+  return async function() {
+    const location = await getLocationFromIP(sensorRegistrationJson.ip);
+    return {
+      ...sensorRegistrationJson,
+      location: location
+    };
+  };
+}
+
 function handleSensorRegistration(sensorRegistrationJson) {
   console.log("ESP32 making the request IP address is: " + sensorRegistrationJson.ip);
 
@@ -250,11 +281,27 @@ function handleSensorRegistration(sensorRegistrationJson) {
 
       post_request.write(json);
       post_request.end();
+
+      // hives.set(sensorRegistrationJson.id, pimpHiveData(sensorRegistrationJson));
+      // let hiveData = pimpHiveData(sensorRegistrationJson);
+      // hives.set(sensorRegistrationJson.id, hiveData);
+      hives.set(sensorRegistrationJson.id, sensorRegistrationJson);
     }
     if (message.update === 'sensor') {
       updateSensors(message.data);
     }
     if (message.update === 'newAlert') {
+      // the alert is added to the alerts array of the hive, and the alerts array of the server
+      let hive = hives.get(message.data.sensorId);
+      if (hive) {
+        if (!hive.alerts) {
+          hive.alerts = [];
+        }
+        hive.alerts.push(message.data);
+      } else {
+        hives.set(message.data.sensorId, { ...message.data, alerts: [message.data] });
+      }
+
       alerts.push(message.data);
     }
   });
@@ -319,7 +366,7 @@ function cleanupAndExit() {
     console.error('Error when closing WebSocket server:', error);
   }
 
-  console.log('All workers have been closed');
+ console.log('All workers have been closed');
   console.log('Bye!');
 
   process.exit();

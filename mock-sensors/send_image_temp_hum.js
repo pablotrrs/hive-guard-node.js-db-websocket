@@ -56,7 +56,8 @@ const sendImages = (ws) => {
   }, 1000 / fps);
 };
 
-const sendTemperatureAndHumidity = (ws) => {
+// Temperature, humidity and maybe battery level
+const sendStreamerData = (ws, sendBattery) => {
   let temp = 30;
   let hum = 70;
   setInterval(() => {
@@ -67,7 +68,8 @@ const sendTemperatureAndHumidity = (ws) => {
     temp = Math.min(Math.max(temp, 30), 40);
     hum = Math.min(Math.max(hum, 60), 80);
 
-    let output = "temp=" + temp.toFixed(2) + ",hum=" + hum.toFixed(2) + ",light=12;state:ON_BOARD_LED_1=0";
+    let output = "temp=" + temp.toFixed(2) + ",hum=" + hum.toFixed(2) + ",light=12;state:ON_BOARD_LED_1=0" +
+        "batteryEnabled=" + sendBattery + ";battery=" + (sendBattery ? 100 : 0);
 
     ws.send(output);
   }, 1000);
@@ -115,7 +117,7 @@ function getSensorRegistrationData(wsPort, expressAppPort) {
 
 // ----------------------------MASTER DISCOVERY----------------------------
 
-exports.connectWithMaster_AndSendDataOver = function(wsPort, appPort, udpPort) {
+exports.connectWithMaster_AndSendDataOver = function(wsPort, appPort, udpPort, sendsBattery) {
   function broadcastMessage(message) {
     const messageBuffer = Buffer.from(message);
 
@@ -187,7 +189,7 @@ exports.connectWithMaster_AndSendDataOver = function(wsPort, appPort, udpPort) {
       ws.on("open", async () => {
         await extractImages();
         sendImages(ws);
-        sendTemperatureAndHumidity(ws);
+        sendStreamerData(ws, sendsBattery);
       });
 
       ws.on("error", function error(err) {

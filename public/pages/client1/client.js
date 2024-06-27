@@ -108,7 +108,7 @@ window.onload = function () {
 wsWithMaster.onmessage = message => {
     let md = JSON.parse(message.data);
     let incomingData = md.devices[0];
-    // console.log('incomingData', incomingData);
+    console.log('incomingData', incomingData);
     // console.log('allDevices', Array.from(allDevices));
 
     // if md.devices.id is not in devices, add it

@@ -92,7 +92,6 @@ function isTemperatureAndHumidityData(data) {
 }
 
 function isImage(data) {
-  // TODO ver qué mierda más podemos hacer para probar que sea una imagen
   return typeof data === 'object'
 }
 

@@ -170,11 +170,14 @@ function createDeviceBox(device) {
             id: device.id + '-temp',
             class: 'sensor sensor-temp'
         }, '0 '));
-
         deviceElement.appendChild(createElement('div', {
             id: device.id + '-hum',
             class: 'sensor sensor-hum'
-        }, '0 '));
+		}, '0 '));
+		deviceElement.appendChild(createElement('div', {
+			id: device.id + '-battery',
+			class: 'sensor sensor-battery'
+		}, '0 '));
 
         // deviceElement2.appendChild(createElement('canvas', {
         //     id: device.id + '-filteredCanvas',
@@ -195,6 +198,9 @@ function updateDeviceBox(device, incomingData) {
     if (incomingData.hum) {
         document.querySelector('#' + device.id + '-hum').innerHTML = incomingData.hum + ' ';
     }
+	if (incomingData.batteryEnabled && incomingData.batteryPercentage) {
+		document.querySelector('#' + device.id + '-battery').innerHTML = incomingData.batteryPercentage + ' ';
+	}
 
     try {
         for (const [key, value] of Object.entries(incomingData.sensors)) {

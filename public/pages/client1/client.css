@@ -266,3 +266,17 @@ body {
     width: 16px;
     height: 16px;
 }
+
+.sensor-battery::before {
+    content:url(../../icons/battery.png);
+    filter: invert(59%) sepia(53%) saturate(263%) hue-rotate(150deg) brightness(87%) contrast(90%);
+    float:left;
+    width:23px;
+    height:23px;
+    margin-left:5px;
+    margin-right:5px;
+}
+
+.sensor-battery::after {
+    content: "%";
+}

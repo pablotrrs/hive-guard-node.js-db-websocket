@@ -85,9 +85,9 @@ async function loadModel(testMode = false) {
   return await tf.loadLayersModel(modelBeeAlarmed);
 }
 
-function isTemperatureAndHumidityData(data) {
+function isTemperatureHumidityAndBatteryData(data) {
   const dataString = data.toString();
-  const regex = /temp=\d+\.\d+,hum=\d+\.\d+,light=\d+;state:ON_BOARD_LED_1=\d/;
+  const regex = /temp=\d+\.\d+,hum=\.\d+,light=\d+;state:ON_BOARD_LED_1=\d+batteryEnabled=\w+;battery=\d+/;
   return regex.test(dataString);
 }
 
@@ -144,6 +144,15 @@ function getHumidityFromData(data) {
   return data.toString().split(',')[1].split('=')[1];
 }
 
+function getBatteryEnabledFromData(data) {
+    const batteryEnabledString = data.toString().split('batteryEnabled=')[1].split(';')[0];
+    return batteryEnabledString === 'true';
+}
+
+function getBatteryPercentageFromData(data) {
+    return parseFloat(data.toString().split('battery=')[1]);
+}
+
 function saveTempAndHumInDatabase(sensor, data) {
   const sensorData_ToBeSaved = {
     sensorId: sensor_worker.key
@@ -188,8 +197,8 @@ function handleCommand(data) {
   }
 }
 
-function checkTempAndHumEnvVars() {
-  if (!process.env.TEMP_MAX_THRESHOLD || !process.env.TEMP_MIN_THRESHOLD || !process.env.HUM_THRESHOLD) {
+function checkThresholdEnvVars() {
+  if (!process.env.TEMP_MAX_THRESHOLD || !process.env.TEMP_MIN_THRESHOLD || !process.env.HUM_THRESHOLD || !process.env.BATTERY_THRESHOLD) {
     throw new Error('You must set the TEMP_MAX_THRESHOLD, TEMP_MIN_THRESHOLD, and HUM_THRESHOLD environment variables\n' +
       'before sending an email. You can do this by sending a POST request to /api/config with the\n' +
       'following JSON payload: {"TEMP_MAX_THRESHOLD": " ", "TEMP_MIN_THRESHOLD": " ", "HUM_THRESHOLD": " "}.')
@@ -204,25 +213,43 @@ function getAlertData(key, temperature, temp) {
   }
 }
 
-function sendEmailIfTempAndHumAreCursed(sensor_worker) {
-  checkTempAndHumEnvVars();
+function getBatteryData(id, batteryPercentage) {
+    return {
+        sensorId: id,
+        batteryPercentage: batteryPercentage
+    }
+}
+
+function sendEmailIfTempAndHumAreCursed_OrIfBatteryIsInLow(sensor_worker) { // "cursed" means "exceeded the threshold"
+  checkThresholdEnvVars();
 
   if (sensor_worker.temp > process.env.TEMP_MAX_THRESHOLD) {
     process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'TEMP_MAX', sensor_worker.temp) });
 
-    sendEmail('Temperature Alert', `Sensor ${sensor_worker.id} exceeded the temperature threshold. Temperature: ${sensor_worker.temp}`);
+    sendEmail('Temperature Alert', `Hive with id ${sensor_worker.id} exceeded the temperature threshold. Temperature: ${sensor_worker.temp}`);
   }
 
   if (sensor_worker.temp < process.env.TEMP_MIN_THRESHOLD) {
     process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'TEMP_MIN', sensor_worker.temp) });
 
-    sendEmail('Temperature Alert', `Sensor ${sensor_worker.id} is below the temperature threshold. Temperature: ${sensor_worker.temp}`);
+    sendEmail('Temperature Alert', `Hive with id ${sensor_worker.id} is below the temperature threshold. Temperature: ${sensor_worker.temp}`);
   }
 
   if (sensor_worker.hum > process.env.HUM_THRESHOLD) {
     process.send({ update: 'newAlert', data: getAlertData(sensor_worker.id, 'HUM', sensor_worker.hum) });
 
-    sendEmail('Humidity Alert', `Sensor ${sensor_worker.id} exceeded the humidity threshold. Humidity: ${sensor_worker.hum}`);
+    sendEmail('Humidity Alert', `Hive with id ${sensor_worker.id} exceeded the humidity threshold. Humidity: ${sensor_worker.hum}`);
+  }
+
+  if (sensor_worker.batteryEnabled) {
+      if (sensor_worker.hum > process.env.HUM_THRESHOLD) {
+          process.send({
+              update: 'newAlert',
+              data: getAlertData(sensor_worker.id, 'LOW_BAT', sensor_worker.batteryPercentage)
+          });
+
+          sendEmail('Low Battery', `Hive with id ${sensor_worker.id} battery is in low, please recharge in time. Battery level: ${sensor_worker.batteryPercentage}`);
+      }
   }
 }
 
@@ -262,11 +289,17 @@ async function main() {
         command = null;
       }
 
-      if (isTemperatureAndHumidityData(data)) {
+      if (isTemperatureHumidityAndBatteryData(data)) {
         sensor_worker.temp = getTemperatureFromData(data);
         sensor_worker.hum = getHumidityFromData(data);
+        sensor_worker.batteryEnabled = getBatteryEnabledFromData(data);
+        if (sensor_worker.batteryEnabled) {
+            sensor_worker.batteryPercentage = getBatteryPercentageFromData(data);
 
-        sendEmailIfTempAndHumAreCursed(sensor_worker);
+            process.send({ update: 'batteryLevel', data: getBatteryData(sensor_worker.id, sensor_worker.batteryPercentage) });
+        }
+
+        sendEmailIfTempAndHumAreCursed_OrIfBatteryIsInLow(sensor_worker);
         saveTempAndHumInDatabase(sensor_worker, data);
       }
 

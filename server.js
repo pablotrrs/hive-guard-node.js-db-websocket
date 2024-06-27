@@ -135,11 +135,13 @@ app.get('/react/*', (_req, res) => {
 });
 
 app.post('/api/config', (req, res) => {
-  const { TEMP_MIN_THRESHOLD, TEMP_MAX_THRESHOLD, HUM_THRESHOLD, EMAIL_USER, EMAIL_PASS, EMAIL_RECIPIENT } = req.body;
+  // TODO decirle a tomi que agregue la batería y que agregue valores por defecto al front
+  const { TEMP_MIN_THRESHOLD, TEMP_MAX_THRESHOLD, HUM_THRESHOLD, BATTERY_THRESHOLD, EMAIL_USER, EMAIL_PASS, EMAIL_RECIPIENT } = req.body;
 
   if (TEMP_MIN_THRESHOLD) process.env.TEMP_MIN_THRESHOLD = TEMP_MIN_THRESHOLD;
   if (TEMP_MAX_THRESHOLD) process.env.TEMP_MAX_THRESHOLD = TEMP_MAX_THRESHOLD;
   if (HUM_THRESHOLD) process.env.HUM_THRESHOLD = HUM_THRESHOLD;
+  if (BATTERY_THRESHOLD) process.env.BATTERY_THRESHOLD = BATTERY_THRESHOLD;
   if (EMAIL_USER) process.env.EMAIL_USER = EMAIL_USER;
   if (EMAIL_PASS) process.env.EMAIL_PASS = EMAIL_PASS;
   if (EMAIL_RECIPIENT) process.env.EMAIL_RECIPIENT = EMAIL_RECIPIENT;
@@ -303,6 +305,12 @@ function handleSensorRegistration(sensorRegistrationJson) {
       }
 
       alerts.push(message.data);
+    }
+    if (message.update === 'batteryLevel') {
+      let hive = hives.get(message.data.sensorId);
+      if (hive) {
+        hive.batteryPercentageLevel = message.data.batteryPercentage;
+      }
     }
   });
 

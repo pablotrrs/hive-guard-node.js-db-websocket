@@ -92,7 +92,7 @@ function getMockSensorIp() {
   return ip;
 }
 
-function getSensorRegistrationData(wsPort, expressAppPort) {
+function getSensorRegistrationData(wsPort, expressAppPort, sendsBattery) {
   const randomId = Math.floor(Math.random() * 1000000);
 
   const ip = getMockSensorIp();
@@ -104,6 +104,7 @@ function getSensorRegistrationData(wsPort, expressAppPort) {
     "appPort": `${expressAppPort}`,
     "saveSensorData": true,
     "detectObjects": true,
+    "batteryLevelSendingEnabled": sendsBattery,
     "class": "cam-instance",
     "display": `Cam #${randomId}`,
     "ip": `${ip}`,
@@ -134,7 +135,7 @@ exports.connectWithMaster_AndSendDataOver = function(wsPort, appPort, udpPort, s
     return new Promise((resolve, reject) => {
       let wsPort = _wsPort;
       let appPort = Number(wsPort) + 1000;
-      const sensorData = getSensorRegistrationData(wsPort, appPort);
+      const sensorData = getSensorRegistrationData(wsPort, appPort, sendsBattery);
       broadcastMessage(sensorData);
       resolve();
     })

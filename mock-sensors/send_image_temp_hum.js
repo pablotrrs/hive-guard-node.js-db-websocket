@@ -68,8 +68,8 @@ const sendStreamerData = (ws, sendBattery) => {
     temp = Math.min(Math.max(temp, 30), 40);
     hum = Math.min(Math.max(hum, 60), 80);
 
-    let output = "temp=" + temp.toFixed(2) + ",hum=" + hum.toFixed(2) + ",light=12;state:ON_BOARD_LED_1=0" +
-        "batteryEnabled=" + sendBattery + ";battery=" + (sendBattery ? 100 : 0);
+    let output = "temp=" + temp.toFixed(2) + ",hum=" + hum.toFixed(2) +
+        ",batteryEnabled=" + (sendBattery ? 1 : 0) + ",battery=" + (sendBattery ? 100 : 0);
 
     ws.send(output);
   }, 1000);
@@ -104,7 +104,7 @@ function getSensorRegistrationData(wsPort, expressAppPort, sendsBattery) {
     "appPort": `${expressAppPort}`,
     "saveSensorData": true,
     "detectObjects": true,
-    "batteryLevelSendingEnabled": sendsBattery,
+    "batteryEnabled": sendsBattery,
     "class": "cam-instance",
     "display": `Cam #${randomId}`,
     "ip": `${ip}`,

@@ -21,5 +21,5 @@ if (process.env.IS_DOCKER_COMPOSE === 'true') {
   const udpPort = 123457;
   console.log(`IP of the master server: ${ip}`);
   console.log('Starting mock sensor data streamer 2');
-  connectWithMaster_AndSendDataOver(wsPort, appPort, udpPort)
+  connectWithMaster_AndSendDataOver(wsPort, appPort, udpPort, true)
 }

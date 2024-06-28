@@ -87,7 +87,7 @@ async function loadModel(testMode = false) {
 
 function isTemperatureHumidityAndBatteryData(data) {
   const dataString = data.toString();
-  const regex = /temp=\d+\.\d+,hum=\.\d+,light=\d+;state:ON_BOARD_LED_1=\d+batteryEnabled=\w+;battery=\d+/;
+  const regex = /^temp=\d+\.\d+,hum=\d+\.\d+,batteryEnabled=\d+,battery=\d+$/;
   return regex.test(dataString);
 }
 
@@ -145,12 +145,11 @@ function getHumidityFromData(data) {
 }
 
 function getBatteryEnabledFromData(data) {
-    const batteryEnabledString = data.toString().split('batteryEnabled=')[1].split(';')[0];
-    return batteryEnabledString === 'true';
+  return data.toString().split(',')[2].split('=')[1] == 1;
 }
 
 function getBatteryPercentageFromData(data) {
-    return parseFloat(data.toString().split('battery=')[1]);
+  return parseFloat(data.toString().split(',')[3].split('=')[1]);
 }
 
 function saveTempAndHumInDatabase(sensor, data) {

@@ -223,25 +223,28 @@ function detections(theId, theImage) {
 	let base64Image = new Image();;
 	base64Image.src = theImage;
 
+	let width = 200;
+	let height = 200;
+
 	base64Image.onload = () => {
 		// Set canvas dimensions to the image dimensions
-		canvas.width = 200;
-		canvas.height = 200;
+		canvas.width = width;
+		canvas.height = height;
 		// filteredCanvas.width = 200;
 		// filteredCanvas.height = 200;
 
 		// Draw the image on the canvas
-		ctx.drawImage(base64Image, 0, 0, 200, 200);
+		ctx.drawImage(base64Image, 0, 0, width, height);
 
 		// Initialize OpenCV mats
-		src = new cv.Mat(200, 200, cv.CV_8UC4);
-		hsv = new cv.Mat(200, 200, cv.CV_8UC3);
-		greenChannel = new cv.Mat(200, 200, cv.CV_8UC1);
-		diff = new cv.Mat(200, 200, cv.CV_8UC1);
-		blurred = new cv.Mat(200, 200, cv.CV_8UC1);
-		normalized = new cv.Mat(200, 200, cv.CV_8UC1);
-		inverted = new cv.Mat(200, 200, cv.CV_8UC1);
-		thresholded = new cv.Mat(200, 200, cv.CV_8UC1);
+		src = new cv.Mat(width, height, cv.CV_8UC4);
+		hsv = new cv.Mat(width, height, cv.CV_8UC3);
+		greenChannel = new cv.Mat(width, height, cv.CV_8UC1);
+		diff = new cv.Mat(width, width, cv.CV_8UC1);
+		blurred = new cv.Mat(width, height, cv.CV_8UC1);
+		normalized = new cv.Mat(width, height, cv.CV_8UC1);
+		inverted = new cv.Mat(width, height, cv.CV_8UC1);
+		thresholded = new cv.Mat(width, height, cv.CV_8UC1);
 
 		// Process the image
 		processImage();
@@ -327,12 +330,20 @@ function detections(theId, theImage) {
 
 							// Check for entry or exit
 							if (centerY > 200 - distance && bee.y <= 200 - distance) {
-								beesIn++;
+								wsWithMaster.send(JSON.stringify({
+									'operation': 'beeTransit',
+                                    'info': { sensorId: theId, transitType: 'IN', value: 1 },
+								}));
+								// beesIn++;
 								// console.log(`Abeja ${id} entrando`);
 								delete beeTracker.bees[id]; // Eliminar la abeja del seguimiento
 								console.log('****beesOut: ' + beesOut);
 							} else if (centerY < distance && bee.y >= distance) {
-								beesOut++;
+								wsWithMaster.send(JSON.stringify({
+									'operation': 'beeTransit',
+                                    'info': { sensorId: theId, transitType: 'IN', value: 1 },
+								}));
+								// beesOut++;
 								// console.log(`Abeja ${id} saliendo`);
 								delete beeTracker.bees[id]; // Eliminar la abeja del seguimiento
 								console.log('****beesIn: ' + beesIn);

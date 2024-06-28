@@ -77,6 +77,20 @@ async function handleWebSocketMessage(ws, data) {
         console.error(`Error getting sensor data: ${err}`);
       }
     }
+    /* No le sé {{{(>_<)}}} */
+    if (data.operation === 'beeTransit') {
+      let hive = hives.get(data.info.sensorId);
+      if (hive) {
+        if (!hive.alerts) {
+          hive.alerts = [];
+        }
+        hive.alerts.push(data.info);
+      } else {
+        hives.set(data.info.sensorId, { ...data.info, alerts: [data.info] });
+      }
+
+      alerts.push(data.info);
+    }
   } catch (error) {
   }
 }

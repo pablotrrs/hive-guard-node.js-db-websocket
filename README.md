@@ -2,42 +2,102 @@
 
 Hive Guard is a real-time beekeeping monitor. It collects data, analyzes it, stores it, and presents it. It offers live video, environmental data, object detection, and more, making beekeeping modern and efficient.
 
-![infrastructure](./assets/infrastructure.png)
+![58c23b07-1d12-4e5a-b2c7-c42bce148e2a](https://github.com/pablotrrs/hive-guard-master-server/assets/66085255/ff3bbd20-05b9-47fd-b182-b3e021df6435)
 
-# Hive Guard Master Server
+This is part of the Hive Guard system, you can find a general overview [here](https://github.com/FrancoBre/HIVE-GUARD)
 
-#### Install:
-1. Install [mongodb](https://www.mongodb.com/).
-2. In your terminal, write:
-```
-npm install
-```
-3. To run the server, use:
-```
-npm run start
-```
+## Contents
+1. [Overview](#overview)
+2. [API Endpoints](#api-endpoints)
+3. [How to Use](#how-to-use)
+   1. [Production Version](#production-version)
+   2. [Mock Versions](#mock-versions)
+   3. [Neural Network Analysis](#neural-network-analysis)
 
-### Setting Parameters
+## Overview
 
-Server parameters are:
+This Node.js project sets up an HTTP server with the following endpoints, as well as a UDP server that listens for broadcast messages on a specified port to facilitate connections from streamers. Additionally, it connects to a MongoDB database where it inserts temperature, humidity data, and detection results.
 
-- `TEMP_MIN_THRESHOLD`: The minimum temperature threshold for alerts.
-- `TEMP_MAX_THRESHOLD`: The maximum temperature threshold for alerts.
-- `HUM_THRESHOLD`: The humidity threshold for alerts.
-- `EMAIL_USER`: The email address used for sending alert emails.
-- `EMAIL_PASS`: The password for the email account used for sending alert emails.
-- `EMAIL_RECIPIENT`: The recipient email address for alert emails.
+The frontend then reads this database to generate graphs and visualizations. The images received are analyzed using a neural network algorithm developed by Fabián Hickert as part of his beeAlarmed project.
 
-You can set these parameters by sending a POST request to the `/api/set-env-vars` endpoint with the parameter values in the request body in JSON format. Here's an example of how to do this with cURL:
+## API Endpoints
 
+### Configuration
+
+- **POST /api/config**
+  - Description: Configure thresholds and email settings.
+  - Request Body:
+    ```json
+    {
+      "TEMP_MIN_THRESHOLD": 20,
+      "TEMP_MAX_THRESHOLD": 60,
+      "HUM_THRESHOLD": 80,
+      "EMAIL_USER": "test",
+      "EMAIL_PASS": "test",
+      "EMAIL_RECIPIENT": "test"
+    }
+    ```
+  - Headers: `Content-Type: application/json`
+
+### Alerts
+
+- **GET /api/alerts**
+  - Description: Retrieve alerts.
+  - No request body or headers required.
+
+### Health Check
+
+- **GET /api/healthcheck**
+  - Description: Check server health.
+  - No request body or headers required.
+
+## How to Use
+
+### Production Version
+
+The production version is intended to be used within a local network to connect with streamers. Please refer to the streamers' documentation for more details.
+
+To start the project, use:
 ```bash
-curl -X POST http://localhost:8000/api/set-env-vars \
--H "Content-Type: application/json" \
--d '{
-    "TEMP_MIN_THRESHOLD": 25,
-    "TEMP_MAX_THRESHOLD": 65,
-    "HUM_THRESHOLD": 80,
-    "EMAIL_USER": "user@example.com",
-    "EMAIL_PASS": "password",
-    "EMAIL_RECIPIENT": "recipient@example.com"
-}'
+docker-compose up
+```
+
+To connect with the frontend, navigate to:
+[http://localhost:8000/client]
+
+Here, you will be able to view images emitted by the streamers. To view the public URL, which is a tunnel created by ngrok, you need to create an account on ngrok and enter your auth token in the `.env` file and `ngrok.yaml`. Enter the public URL in the provided field on the deployed version page (URL). If this does not work, you can start the local version of the frontend as explained in [this documentation](https://github.com/EvolutionRX/hive-guard-client/blob/main/README.md).
+
+### Mock Versions
+
+You can also use mock versions to test the system without connecting streamers. We have developed logic to simulate the sending of images and temperature and humidity data from the ESP32 and DHT11 modules connected to a beehive.
+
+To do this, place one of the available videos in the specified path and use ffmpeg to send each frame of the video as if they were recorded and streamed by a streamer.
+
+We have two videos available:
+1. One filmed by Fabián Hickert as part of his beeAlarmed project.
+2. Another filmed by Jorge Seniw, our beekeeper contact, using an ESP32CAM.
+
+The video filmed by Jorge Seniw is more realistic in this context, because the whole system is ESP32CAM based.
+
+Run the mock version by running:
+```bash
+docker-compose -f docker-compose.mock.yml up
+```
+
+You can also run a local version, which does not run in a docker network by running:
+```bash
+npm install
+npm run start-all
+```
+
+Or if this doesn't work for you (check the [troubleshooting section](https://github.com/FrancoBre/HIVE-GUARD#troubleshooting) first), you can try running:
+```bash
+npm install
+npm run start
+npm run start-streamer1
+npm run start-streamer2
+```
+
+### Neural Network Analysis
+
+The neural network used to analyze the images for identifying incoming and outgoing bees, bees with varroa, bees with pollen, etc., was developed by Fabián Hickert using his images. We still need to test the accuracy of the predictions on our images and determine if any adjustments to the model are necessary.

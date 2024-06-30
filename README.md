@@ -74,10 +74,14 @@ You can also use mock versions to test the system without connecting streamers. 
 To do this, place one of the available videos in the specified path and use ffmpeg to send each frame of the video as if they were recorded and streamed by a streamer.
 
 We have two videos available:
-1. One filmed by Fabián Hickert as part of his beeAlarmed project.
-2. Another filmed by Jorge Seniw, our beekeeper contact, using an ESP32CAM.
+1. One filmed by Fabián Hickert as part of his beeAlarmed project. Full videos [here](https://www.youtube.com/@raspbee-beealarmed8228)
+![fabian-hickert-recording](./assets/fabian-hickert-hive-recording.gif)
+
+3. Another filmed by Jorge Seniw, our beekeeper contact, using an ESP32CAM. Full video [here]()
+![jorge-seniw-recording](./assets/jorge-seniw-hive-recording.gif)
 
 The video filmed by Jorge Seniw is more realistic in this context, because the whole system is ESP32CAM based.
+You can also test your own videos recorded with an ESP32CAM or another device. We used [this software](https://github.com/jameszah/ESP32-CAM-Video-Recorder-junior) by jameszah to record images into an SD card.
 
 Run the mock version by running:
 ```bash

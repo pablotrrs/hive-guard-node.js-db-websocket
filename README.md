@@ -105,3 +105,7 @@ npm run start-streamer2
 ### Neural Network Analysis
 
 The neural network used to analyze the images for identifying incoming and outgoing bees, bees with varroa, bees with pollen, etc., was developed by Fabián Hickert using his images. We still need to test the accuracy of the predictions on our images and determine if any adjustments to the model are necessary.
+
+### What is left to do
+
+There is a version that sends battery in [this branch](https://github.com/pablotrrs/hive-guard-master-server/tree/feature/send-battery-again). Check [here](https://github.com/FrancoBre/HIVE-GUARD#Battery) for more insight

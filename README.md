@@ -77,7 +77,7 @@ We have two videos available:
 1. One filmed by Fabián Hickert as part of his beeAlarmed project. Full videos [here](https://www.youtube.com/@raspbee-beealarmed8228)
 ![fabian-hickert-recording](./assets/fabian-hickert-hive-recording.gif)
 
-3. Another filmed by Jorge Seniw, our beekeeper contact, using an ESP32CAM. Full video [here]()
+3. Another filmed by Jorge Seniw, our beekeeper contact, using an ESP32CAM. Full video [here](https://youtu.be/3LewPL6uF70)
 ![jorge-seniw-recording](./assets/jorge-seniw-hive-recording.gif)
 
 The video filmed by Jorge Seniw is more realistic in this context, because the whole system is ESP32CAM based.

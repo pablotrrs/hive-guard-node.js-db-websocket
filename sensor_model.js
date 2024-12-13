@@ -103,9 +103,9 @@ sensorSchema.statics.saveSensorData = function(sensorsObj) {
   return Promise.resolve(true);
 };
 
-const SensorData_Database = mongoose.model('Sensor', sensorSchema);
+const SensorWeatherData_Database = mongoose.model('Sensor', sensorSchema);
 
 module.exports = {
-  mongoose,
-  SensorData_Database: SensorData_Database
+    mongoose,
+    SensorWeatherData_Database: SensorWeatherData_Database
 };

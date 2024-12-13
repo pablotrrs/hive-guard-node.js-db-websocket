@@ -5,20 +5,20 @@ require('dotenv').config();
 mongoose.set('debug', false);
 
 const connectToDatabase = (uri) => {
-  mongoose.connect(uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    maxPoolSize: process.env.MONGODB_MAX_POOL,
-    serverSelectionTimeoutMS: 10000
-  }).then(() => {
-    console.log('Mongoose connected to MongoDB');
-  }).catch((err) => {
-    console.log('Mongoose connection error:', err);
-  });
+    mongoose.connect(uri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        maxPoolSize: process.env.MONGODB_MAX_POOL,
+        serverSelectionTimeoutMS: 10000
+    }).then(() => {
+        console.log('Mongoose connected to MongoDB');
+    }).catch((err) => {
+        console.log('Mongoose connection error:', err);
+    });
 
-  mongoose.connection.on('disconnected', () => {
-    console.log('Mongoose disconnected from MongoDB');
-  });
+    mongoose.connection.on('disconnected', () => {
+        console.log('Mongoose disconnected from MongoDB');
+    });
 };
 
 const setupDatabaseConnection = () => {
@@ -43,8 +43,11 @@ const setupDatabaseConnection = () => {
       console.log(`Connecting to MongoDB at ${uri}`);
       connectToDatabase(uri);
     });
+  // TODO separar bien por ambientes
+  // } else if (process.env.NODE_ENV === 'live'){
   } else {
     const uri = `mongodb://${process.env.MONGODB_IP}:${process.env.MONGODB_PORT}/${process.env.MONGODB_NAME}`;
+    // const uri = `mongodb+srv://ptorres:SPq5PuGgw3QpwaYf@hive-guard-p.vr9tc8v.mongodb.net/`;
     console.log(`Connecting to MongoDB at ${uri}`);
     connectToDatabase(uri);
   }

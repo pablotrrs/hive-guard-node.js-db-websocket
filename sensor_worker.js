@@ -5,9 +5,12 @@ const fs = require('fs');
 const tf = require('@tensorflow/tfjs-node');
 const MockModel = require('./test/mock-model');
 const modelBeeAlarmed = tf.io.fileSystem("./test/model.json");
-const { SensorData_Database } = require('./sensor_model');
+const {SensorWeatherData_Database} = require('./sensor_model');
+const {SensorDetectionsData_Database} = require('./detections_model');
 const sendEmail = require('./send_email.js');
 require('dotenv').config();
+const mongoose = require('mongoose');
+const { Decimal128 } = require('bson');
 
 let testMode = false;
 let sensor_worker;
@@ -97,9 +100,8 @@ async function detectObjects(img, model, ws) {
   if (sensor_worker.detectObjects) {
     counter++;
 
-    if (counter == process.env.PREDICTION_FREQUENCY) {
-      console.log('****BBBBBBBBBBBB');
-      counter = 0;
+        if (counter == process.env.PREDICTION_FREQUENCY) {
+            counter = 0;
 
       let imgTensor = tf.node.decodeImage(new Uint8Array(data), 3);
       imgTensor = imgTensor.expandDims(0);
@@ -159,8 +161,14 @@ function saveTempAndHumInDatabase(sensor, data) {
   }
 
   if (sensor.saveSensorData && !process.env.MONGO_ENABLED) {
-    SensorData_Database.saveSensorData(sensorData_ToBeSaved);
+      SensorWeatherData_Database.saveSensorData(sensorData_ToBeSaved);
   }
+}
+
+function saveDetectionsInDatabase(sensor, data) {
+    if (sensor.saveSensorData && !process.env.MONGO_ENABLED) {
+        SensorDetectionsData_Database.saveSensorData(data);
+    }
 }
 
 function handleCommand(data) {
@@ -277,73 +285,100 @@ async function main() {
             imgTensor = imgTensor.expandDims(0);
             imgTensor = tf.image.resizeBilinear(imgTensor, [150, 75]);
 
-            const predictions = await model.predict(imgTensor);
-            /*
-            predictions.forEach((prediction) => {
-                console.log(prediction.class + ' - ' + prediction.score);
-                if (validEntities.includes(prediction.class) && prediction.score > process.env.PREDICTION_SCORE_THRESHOLD) {
-                    console.log('****CCCCCCCCCCC');
-                    new fluidb(`./images/${prediction.class}/${Date.now()}`, { 'score': prediction.score, 'img': img, 'bbox': prediction.bbox });
+                        const predictions = await model.predict(imgTensor);
+                        /*
+                        predictions.forEach((prediction) => {
+                            console.log(prediction.class + ' - ' + prediction.score);
+                            if (validEntities.includes(prediction.class) && prediction.score > process.env.PREDICTION_SCORE_THRESHOLD) {
+                                console.log('****CCCCCCCCCCC');
+                                new fluidb(`./images/${prediction.class}/${Date.now()}`, { 'score': prediction.score, 'img': img, 'bbox': prediction.bbox });
+                            }
+                        });
+                        */
+                        listClasses = ["varroa","pollen","wasps","cooling"];
+                        //console.log('predictions ---: ' + predictions);
+
+                        for (let index = 0; index < predictions.length; index++) {
+                            let dataToInsert = {
+                                sensorId: sensor_worker.id,
+                                varroa_score: 0,
+                                pollen_score: 0,
+                                wasps_score: 0,
+                                cooling_score: 0
+                            };
+
+                            let scoreTensor = predictions[index];
+                            let score = scoreTensor.dataSync()[0];
+                            let theClass = listClasses[index];
+                            score = score < 0.000001 ? 0 : score;
+                            //console.log(theClass + ' - score: ' + score);
+                            if (theClass === "varroa" && score !== 0) {
+                                dataToInsert.varroa_score = Decimal128.fromString(score.toString());
+                            }
+                            if (theClass === "pollen" && score !== 0) {
+                                dataToInsert.pollen_score = Decimal128.fromString(score.toString());
+                            }
+                            if (theClass === "wasps" && score >= 0.99999) {
+                                dataToInsert.wasps_score = Decimal128.fromString(score.toString());
+                            }
+                            if (theClass === "cooling" && score >= 0.01) {
+                                dataToInsert.cooling_score = Decimal128.fromString(score.toString());
+                            }
+
+                            if (dataToInsert.varroa_score !== 0 || dataToInsert.pollen_score !== 0 ||
+                                dataToInsert.wasps_score !== 0 || dataToInsert.cooling_score !== 0
+                            ) {
+                                saveDetectionsInDatabase(sensor_worker, dataToInsert);
+                            }
+                        }
+
+                        tf.dispose([imgTensor]);
+                    }
                 }
-            });
-            */
-            listClasses = ["varroa", "pollen", "wasps", "cooling"];
-            // console.log('predictions ---: ' + predictions);
-            for (let index = 0; index < predictions.length; index++) {
-              let scoreTensor = predictions[index];
-              let score = scoreTensor.dataSync()[0];
-              score = score < 0.000001 ? 0 : score;
-              // console.log(listClasses[index] + ' - score: ' + score);
-              //new fluidb(`./images/${listClasses[index]}/${Date.now()}`, { 'img': img});
+
+                sensor_worker.image = img;
+            } else {
+                const commandRegex = /\(c:(.*?)\)/g;
+                const sensorRegex = /\(s:(.*?)\)/g;
+                let match;
+
+                while ((match = commandRegex.exec(data))) {
+                    const keyValuePairs = match[1];
+                    const pairs = keyValuePairs.trim().split(/\s*,\s*/);
+
+                    for (const pair of pairs) {
+                        const [key, value] = pair.split("=");
+                        const commandFind = sensor_worker.commands.find(c => c.id === key);
+                        if (commandFind) {
+                            commandFind.state = value;
+                        }
+                    }
+                }
+
+                const sensorsObj = {
+                    sensorId: sensor_worker.key
+                };
+
+                while ((match = sensorRegex.exec(data))) {
+                    const keyValuePairs = match[1];
+                    const pairs = keyValuePairs.trim().split(/\s*,\s*/);
+
+                    for (const pair of pairs) {
+                        const [key, value] = pair.split("=");
+                        sensorsObj[key] = value;
+                    }
+                }
+
+                if (sensor_worker.saveSensorData) {
+                    Sensor.saveSensorData(sensorsObj);
+                }
+
+                sensor_worker.sensors = sensorsObj;
             }
 
-            tf.dispose([imgTensor]);
-          }
-        }
-
-        sensor_worker.image = img;
-      } else {
-        const commandRegex = /\(c:(.*?)\)/g;
-        const sensorRegex = /\(s:(.*?)\)/g;
-        let match;
-
-        while ((match = commandRegex.exec(data))) {
-          const keyValuePairs = match[1];
-          const pairs = keyValuePairs.trim().split(/\s*,\s*/);
-
-          for (const pair of pairs) {
-            const [key, value] = pair.split("=");
-            const commandFind = sensor_worker.commands.find(c => c.id === key);
-            if (commandFind) {
-              commandFind.state = value;
-            }
-          }
-        }
-
-        const sensorsObj = {
-          sensorId: sensor_worker.key
-        };
-
-        while ((match = sensorRegex.exec(data))) {
-          const keyValuePairs = match[1];
-          const pairs = keyValuePairs.trim().split(/\s*,\s*/);
-
-          for (const pair of pairs) {
-            const [key, value] = pair.split("=");
-            sensorsObj[key] = value;
-          }
-        }
-
-        if (sensor_worker.saveSensorData) {
-          Sensor.saveSensorData(sensorsObj);
-        }
-
-        sensor_worker.sensors = sensorsObj;
-      }
-
-      process.send({ update: 'sensor', data: sensor_worker });
+            process.send({ update: 'sensor', data: sensor_worker });
+        });
     });
-  });
 }
 
 main();
